@@ -21,3 +21,20 @@ def registration(request):
     elif request.method == 'GET':
         return Response({'message': 'Signup View'})
 
+@api_view(['GET', 'POST'])
+def login(request):
+    if request.method == 'POST':
+        username = request.data.get('username')
+        password = request.data.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            })
+        else:
+            return Response({'error': 'Invalid credentials'}, status=400)
+    elif request.method == 'GET':
+        return Response({'message': 'Login View'})
+
