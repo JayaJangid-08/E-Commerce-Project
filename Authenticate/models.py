@@ -5,13 +5,13 @@ from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
     USERNAME_FIELD = 'username'
-    email = models.EmailField(unique=True)
     ROLE_CHOICE = [
         ('admin', 'Admin'),
         ('vendor', 'Vendor'),
         ('customer', 'Customer'),
         ]
-    role = models.CharField(max_length=20 , choices= ROLE_CHOICE)
+    role = models.CharField(max_length=20 , choices= ROLE_CHOICE , default='customer')
+    email = models.EmailField(unique=True)
 
     REQUIRED_FIELDS = ['email', 'role']
     def __str__(self):
