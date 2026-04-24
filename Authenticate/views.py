@@ -43,6 +43,8 @@ def login(request):
 @permission_classes([IsAuthenticated])
 def address_list(request):
     if request.method == 'GET':
+        if not IsCustomer().has_permission(request, None):
+            return Response({'message': 'Permission denied'}, status=403)
         addresses = Address.objects.filter(user=request.user)
         serializer = AddressSerializer(addresses, many=True)
         return Response(serializer.data)
@@ -65,6 +67,8 @@ def address_detail(request, address_id):
         return Response({'message' : 'Address not found'}, status=404)
     
     if request.method == 'GET':
+        if not IsCustomer().has_permission(request , None):
+            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         serializer = AddressSerializer(address)
         return Response(serializer.data)
     
