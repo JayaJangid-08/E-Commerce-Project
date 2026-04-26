@@ -38,14 +38,15 @@ def place_order(request):
     if not cart_items.exists():
         return Response({'message': 'Cart is empty'}, status=400)
     
+    address_id = request.data.get('delivery_address')
     try:
-        address = Address.objects.get(id=id, user=request.user)
+        address = Address.objects.get(id=address_id, user=request.user)
     except Address.DoesNotExist:
         return Response({'message': 'Invalid delivery address'}, status=400)
     
     serializer = OrderSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        order = serializer.save()
+        order = serializer.save(customer=request.user)
         total = 0
         for item in cart_items:
             OrderItem.objects.create(
@@ -58,7 +59,7 @@ def place_order(request):
         
         order.total_price = total
         order.save()
-        
+
         cart_items.delete()
         
         return Response(serializer.data)
@@ -77,12 +78,12 @@ def order_detail(request, order_id):
         if order.customer != request.user:
             return Response({'message': 'Permission denied'}, status=403)
     elif IsVendor().has_permission(request, None):
-        if not order.items.filter(product__vendor=request.user).exists():
+        if not order.order_items.filter(product__vendor=request.user).exists():
             return Response({'message': 'Permission denied'}, status=403)
     elif not IsAdmin().has_permission(request, None):
         return Response({'message': 'Permission denied'}, status=403)
     
-    items = OrderItem.objects.filter(order=order)
+    items = order.order_items.all()
     order_serializer = OrderSerializer(order)
     items_serializer = OrderItemSerializer(items, many=True)
     
