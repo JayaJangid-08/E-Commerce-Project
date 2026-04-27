@@ -24,7 +24,7 @@ class Address(models.Model):
     state = models.CharField(max_length=50)
     pincode = models.CharField(max_length=6)
     phone = models.CharField(max_length=15)
-    label = models.CharField(max_length=20 , choices=[('office' , 'Office'), ('house' , 'House')])
+    label = models.CharField(max_length=20 , choices=[('office' , 'Office'), ('home' , 'Home')])
 
     def __str__(self):
         return f"{self.user.username} - {self.city} ({self.label})"
