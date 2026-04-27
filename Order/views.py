@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 
 from .models import Order , OrderItem
 from .serializers import OrderSerializer , OrderItemSerializer
@@ -24,8 +25,11 @@ def order_list(request):
     else:
         return Response({'message': 'Permission denied'}, status=403)
     
-    serializer = OrderSerializer(orders, many=True)
-    return Response(serializer.data)
+    paginator = PageNumberPagination()
+    paginator.page_size = 5
+    paginator_orders = paginator.paginate_queryset(orders , request)
+    serializer = OrderSerializer(paginator_orders, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['POST'])
