@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 
 from .serializers import ProductSerializer , CategorySerializer
 from .models import Product , Category
@@ -15,8 +16,11 @@ from Authenticate.permissions import IsAdmin , IsVendorOrAdmin
 def product_list(request):
     if request.method == 'GET':
         products = Product.objects.all()
-        serializer = ProductSerializer(products , many=True)
-        return Response(serializer.data)
+        paginator = PageNumberPagination()
+        paginator.page_size = 5
+        paginator_products = paginator.paginate_queryset(products , request)
+        serializer = ProductSerializer(paginator_products , many=True)
+        return paginator.get_paginated_response(serializer.data)
     
     elif request.method == 'POST':
         if not IsVendorOrAdmin().has_permission(request, None):
