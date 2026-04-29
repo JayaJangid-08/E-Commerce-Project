@@ -8,7 +8,7 @@ In E-Commerce API (Application Programming Interface) there are four APPs :
     Handles signup, login and JWT (JSON Web Token) token refresh for all users.
 
 - **2) Product** :-
-    Manages Product and category list and Detail. Vendor can add os update their own products, admin manages categories.
+    Manages Product and category list and Detail. Vendor can add or update their own products, admin manages categories.
 
 - **3) Cart** :-
     Allows user to add, update and remove products from their cart.
