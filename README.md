@@ -108,7 +108,7 @@ In E-Commerce API (Application Programming Interface) there are four APPs :
     python manage.py runserver
  ```
 
-6. **Start celery worker** (separate terminal)
+6. **Start celery worker** (Separate Terminal)
  ```
     celery -A ECommerce worker -l info --pool=solo
  ```
