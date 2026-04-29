@@ -115,11 +115,11 @@ def cancel_order(request, order_id):
     order.save()
     return Response({'message': 'Order cancelled successfully'})
 
-
+# Only admin can update status here
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-def update_status(request, order_id):
-    if not IsVendorOrAdmin().has_permission(request, None):
+def update_order_status(request, order_id):
+    if not IsAdmin().has_permission(request, None):
         return Response({'message': 'Permission denied'}, status=403)
     
     try:
@@ -137,5 +137,35 @@ def update_status(request, order_id):
     
     order.status = new_status
     order.save()
+    return Response({'message': 'Status updated successfully'})
+    
+# Only vendor those item are in order can update item status here
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_item_status(request, item_id):
+    if not IsVendor().has_permission(request, None):
+        return Response({'message': 'Permission denied'}, status=403)
+    
+    try:
+        item = OrderItem.objects.get(id=item_id)
+    except OrderItem.DoesNotExist:
+        return Response({'message': 'Order not found'}, status=404)
+    
+    if item.product.vendor != request.user:
+        return Response({'message': 'Permission denied'}, status=403)
+    
+    if item.status in ['delivered', 'cancelled']:
+        return Response({'message' : 'Item status cannot be updated'}, status=400)
+    
+    new_status = request.data.get('status')
+    
+    if new_status not in ['confirmed', 'shipped', 'delivered']:
+        return Response({'message': 'Invalid status'}, status=400)
+    
+    if item.status == 'cancelled':
+        return Response({'message': 'Cancelled order cannot be updated'}, status=400)
+    
+    item.status = new_status
+    item.save()
     return Response({'message': 'Status updated successfully'})
     
