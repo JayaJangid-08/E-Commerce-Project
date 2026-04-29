@@ -16,6 +16,24 @@ from Authenticate.permissions import IsAdmin , IsVendorOrAdmin
 def product_list(request):
     if request.method == 'GET':
         products = Product.objects.all()
+        # Filtering
+        category = request.query_params.get('category')
+        vendor = request.query_params.get('vendor')
+        search = request.query_params.get('search')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+        ordering = request.query_params.get('ordering', 'created_at')
+        if category:
+            products = products.filter(category=category)
+        if vendor:
+            products = products.filter(vendor=vendor)
+        if search:
+            products = products.filter(name__icontains=search)
+        if min_price:
+            products = products.filter(price__gte=min_price)
+        if max_price:
+            products = products.filter(price__lte=max_price)
+        products = products.order_by(ordering) 
         paginator = PageNumberPagination()
         paginator.page_size = 5
         paginator_products = paginator.paginate_queryset(products , request)
