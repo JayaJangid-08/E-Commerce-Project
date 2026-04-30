@@ -17,8 +17,8 @@ def registration(request):
         serializer = RegistrationSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            return Response({'message': 'User created successfully'})
-        return Response(serializer.errors)
+            return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     elif request.method == 'GET':
         return Response({'message': 'Signup View'})
 
@@ -35,7 +35,7 @@ def login(request):
                 'access': str(refresh.access_token),
             })
         else:
-            return Response({'error': 'Invalid credentials'}, status=400)
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     elif request.method == 'GET':
         return Response({'message': 'Login View'})
 
@@ -55,16 +55,19 @@ def address_list(request):
         serializer = AddressSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=400)
 
 @api_view(['GET' , 'PUT' , 'DELETE'])
 @permission_classes([IsAuthenticated])
 def address_detail(request, address_id):
     try:
-        address = Address.objects.get(user = request.user, id = address_id)
+        address = Address.objects.get(id = address_id)
     except Address.DoesNotExist:
         return Response({'message' : 'Address not found'}, status=404)
+    
+    if address.user != request.user:
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     if request.method == 'GET':
         if not IsCustomer().has_permission(request , None):
@@ -85,5 +88,5 @@ def address_detail(request, address_id):
         if not IsCustomer().has_permission(request, None):
             return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         address.delete()
-        return Response({'message' : 'Address deleted successfully'})
+        return Response({'message' : 'Address deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
