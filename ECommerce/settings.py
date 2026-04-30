@@ -91,6 +91,9 @@ DATABASES = {
         'PASSWORD': env('DB_PASSWORD'), 
         'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT'),
+        'OPTIONS' :{
+            'init_command' : "SET foreign_key_checks=0;",
+        },
     }
 }
 
