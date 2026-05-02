@@ -162,9 +162,6 @@ def update_item_status(request, item_id):
     if new_status not in ['confirmed', 'shipped', 'delivered']:
         return Response({'message': 'Invalid status'}, status=400)
     
-    if item.status == 'cancelled':
-        return Response({'message': 'Cancelled order cannot be updated'}, status=400)
-    
     item.status = new_status
     item.save()
     return Response({'message': 'Status updated successfully'})
