@@ -48,7 +48,7 @@ def product_list(request):
         
         if serializer.is_valid():
             serializer.save(vendor = request.user)
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -95,7 +95,7 @@ def category_list(request):
         serializer = CategorySerializer(data = request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET' , 'PUT' , 'DELETE'])
@@ -112,7 +112,7 @@ def category_detail(request, category_id):
 
     elif request.method == 'PUT':
         if not IsAdmin().has_permission(request , None):
-            return Response({'message' : 'Premission denied'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         serializer = CategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -121,8 +121,8 @@ def category_detail(request, category_id):
     
     elif request.method == 'DELETE':
         if not IsAdmin().has_permission(request , None):
-            return Response({'message' : 'Premission denied'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         
         category.delete()
-        return Response({'message' : 'Category deleted successfully'})
+        return Response({'message' : 'Category deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
