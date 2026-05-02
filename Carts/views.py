@@ -18,7 +18,7 @@ def cart_list(request):
             return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         cart = Cart.objects.filter(user=request.user)
         serializer = CartSerializer(cart, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -29,11 +29,11 @@ def add_product(request):
             return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         product_id = request.data.get('product')
         if Cart.objects.filter(user=request.user, product_id=product_id).exists():
-            return Response({'message': 'Product already in cart'}, status=400)
+            return Response({'message': 'Product already in cart'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CartSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=400)
 
 
