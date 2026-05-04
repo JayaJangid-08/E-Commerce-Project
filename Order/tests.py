@@ -477,7 +477,6 @@ class OrderStatusUpdateTest(APITestCase):
         response = self.client.put(f'/orders/999/status/', data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-
     def test_update_invalid_status(self):
         data = {
             'status' : 'out for delivery'
