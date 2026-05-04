@@ -88,5 +88,65 @@ class CartListTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+class CartDetailTest(APITestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username = 'NewVendor',
+            email = 'newvendor@gmail.com',
+            password = 'VendorPass',
+            role = 'vendor'
+        )
+        self.customer_1 = User.objects.create_user(
+            username = 'NewCustomer_1',
+            email = 'newcustomer1@gmail.com',
+            password = 'CustomerPass1',
+            role = 'customer'
+        )
+        self.customer_2 = User.objects.create_user(
+            username = 'NewCustomer_2',
+            email = 'newcustomer2@gmail.com',
+            password = 'CustomerPass2',
+            role = 'customer'
+        )
+        self.category = Category.objects.create(
+            name = 'Electronic'
+        )
+        self.product_1 = Product.objects.create(
+            name = 'NewProduct_1',
+            description = 'New Product is cool',
+            price = 120,
+            stock = 10,
+            category = self.category,
+            vendor = self.vendor,
+        )
+        self.product_2 = Product.objects.create(
+            name = 'NewProduct_2',
+            description = 'New Product is cool',
+            price = 120,
+            stock = 10,
+            category = self.category,
+            vendor = self.vendor,
+        )
+        self.cart = Cart.objects.create(
+            user = self.customer_1,
+            product = self.product_1,
+            quantity = 1
+        )
+        self.client.force_authenticate(user=self.customer_1)
+    
+    def test_get_cart_detail(self):
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.get(f'/carts/cart/{self.cart.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_update_product_quantity_as_customer(self):
+        data = {
+            'quantity' : 2
+        }
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put(f'/carts/cart/{self.cart.id}/', data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    
 
 
