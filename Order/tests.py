@@ -4,6 +4,7 @@ from rest_framework import status
 from Products.models import Product , Category
 from Authenticate.models import User , Address
 from Order.models import Order , OrderItem
+from Carts.models import Cart
 
 # Create your tests here.
 
@@ -260,6 +261,135 @@ class OrderStatusCancelTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
+class PlaceOrderTest(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='admin',
+            email='admin@gmail.com',
+            password='adminpass',
+            role='admin'
+        )
+        self.vendor = User.objects.create_user(
+            username='vendor',
+            email='vendor@gmail.com',
+            password='vendorpass',
+            role='vendor'
+        )
+        self.customer_1 = User.objects.create_user(
+            username='customer1',
+            email='customer1@gmail.com',
+            password='customer1pass',
+            role='customer'
+        )
+        self.customer_2 = User.objects.create_user(
+            username='customer2',
+            email='customer2@gmail.com',
+            password='customer2pass',
+            role='customer'
+        )
+        self.category = Category.objects.create(
+            name='Electronics'
+        )
+        self.product_1 = Product.objects.create(
+            name='Laptop',
+            description='Test product',
+            price=50000,
+            stock=10,
+            category=self.category,
+            vendor=self.vendor
+        )
+        self.product_2 = Product.objects.create(
+            name='Laptop',
+            description='Test product',
+            price=40000,
+            stock=10,
+            category=self.category,
+            vendor=self.vendor
+        )
+        self.address = Address.objects.create(
+            user=self.customer_1,
+            street='5-C scheme',
+            city='Jaipur',
+            state='Rajasthan',
+            pincode='302001',
+            phone='9999999999',
+            label='home'
+        )
+        self.cart_1 = Cart.objects.create(
+            user = self.customer_1,
+            product = self.product_1,
+            quantity = 1
+        )
+        self.cart_2 = Cart.objects.create(
+            user = self.customer_2,
+            product = self.product_2,
+            quantity = 1
+        )
+    
+    def test_customer_place_order_as_owner(self):
+        data = {
+            'delivery_address' : self.address.id
+        }
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.post(f'/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # verify order created
+        order_exists = Order.objects.filter(customer=self.customer_1).exists()
+        self.assertTrue(order_exists)
+        # verify cart cleared
+        cart_exists = Cart.objects.filter(user=self.customer_1).exists()
+        self.assertFalse(cart_exists)
+
+    def test_customer_cannot_place_other_user_order(self):
+        data = {
+            'delivery_address' : self.address.id
+        }
+        self.client.force_authenticate(user=self.customer_2)
+        response = self.client.post(f'/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_vendor_cannot_place_order(self):
+        data = {
+            'delivery_address' : self.address.id
+        }
+        self.client.force_authenticate(user=self.vendor)
+        response = self.client.post(f'/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cannot_place_order(self):
+        data = {
+            'delivery_address' : self.address.id
+        }
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(f'/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_user_cannot_place_order(self):
+        data = {
+            'delivery_address' : self.address.id
+        }
+        self.client.force_authenticate(user=None)
+        response = self.client.post(f'/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_place_order_with_unowned_address(self):
+        data = {
+            'delivery_address' : self.address.id
+        }
+        self.client.force_authenticate(user=self.customer_2)
+        response = self.client.post(f'/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_empty_cart_cannot_place_order(self):
+        Cart.objects.filter(user=self.customer_1).delete()
+        data = {
+            'delivery_address': self.address.id
+        }
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.post('/orders/place/', data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class OrderStatusUpdateTest(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
@@ -343,7 +473,7 @@ class OrderStatusUpdateTest(APITestCase):
         data = {
             'status': 'confirmed'
         }
-        self.client.force_authenticate(user=self.vendor)
+        self.client.force_authenticate(user=self.admin)
         response = self.client.put(f'/orders/999/status/', data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
