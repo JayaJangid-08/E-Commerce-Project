@@ -142,6 +142,124 @@ class OrderDetailTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
+class OrderStatusCancelTest(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='admin',
+            email='admin@gmail.com',
+            password='adminpass',
+            role='admin'
+        )
+        self.vendor = User.objects.create_user(
+            username='vendor',
+            email='vendor@gmail.com',
+            password='vendorpass',
+            role='vendor'
+        )
+        self.customer_1 = User.objects.create_user(
+            username='customer1',
+            email='customer1@gmail.com',
+            password='customer1pass',
+            role='customer'
+        )
+        self.customer_2 = User.objects.create_user(
+            username='customer2',
+            email='customer2@gmail.com',
+            password='customer2pass',
+            role='customer'
+        )
+        self.category = Category.objects.create(
+            name='Electronics'
+        )
+        self.product = Product.objects.create(
+            name='Laptop',
+            description='Test product',
+            price=50000,
+            stock=10,
+            category=self.category,
+            vendor=self.vendor
+        )
+        self.address = Address.objects.create(
+            user=self.customer_1,
+            street='5-C scheme',
+            city='Jaipur',
+            state='Rajasthan',
+            pincode='302001',
+            phone='9999999999',
+            label='home'
+        )
+        self.order = Order.objects.create(
+            customer=self.customer_1,
+            delivery_address=self.address,
+            total_price=50000,
+            status='pending'
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            quantity=1,
+            price=50000,
+            status='pending'
+        )
+        self.client.force_authenticate(user=self.customer_1)
+    
+    def test_customer_can_cancel_own_order(self):
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    def test_cannot_cancel_shipped_order(self):
+        self.order.status = 'shipped'
+        self.order.save()
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cannot_cancel_delivered_order(self):
+        self.order.status = 'delivered'
+        self.order.save()
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_cancel_already_cancelled_order(self):
+        self.order.status = 'cancelled'
+        self.order.save()
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    def test_customer_cannot_cancel_other_users_order(self):
+        self.client.force_authenticate(user=self.customer_2)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_vendor_cannot_cancel_order(self):
+        self.client.force_authenticate(user=self.vendor)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cannot_cancel_order(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_user_cannot_cancel_order(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_cancel_with_invalid_order_id(self):
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put(f'/orders/999/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_invalid_url_for_cancel_order(self):
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.put('/orders/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
 class OrderStatusUpdateTest(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
@@ -226,7 +344,7 @@ class OrderStatusUpdateTest(APITestCase):
             'status': 'confirmed'
         }
         self.client.force_authenticate(user=self.vendor)
-        response = self.client.put(f'/orders/item/999/status/', data)
+        response = self.client.put(f'/orders/999/status/', data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
