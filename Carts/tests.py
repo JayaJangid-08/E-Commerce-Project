@@ -147,6 +147,23 @@ class CartDetailTest(APITestCase):
         response = self.client.put(f'/carts/cart/{self.cart.id}/', data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
     
+    def test_update_product_quantity_as_vendor(self):
+        data = {
+            'quantity' : 2
+        }
+        self.client.force_authenticate(user=self.vendor)
+        response = self.client.put(f'/carts/cart/{self.cart.id}/', data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
+    def test_remove_product_as_customer(self):
+        self.client.force_authenticate(user=self.customer_1)
+        response = self.client.delete(f'/carts/cart/{self.cart.id}/remove/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    def test_remove_product_of_other_user(self):
+        self.client.force_authenticate(user=self.customer_2)
+        response = self.client.delete(f'/carts/cart/{self.cart.id}/remove/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
 
