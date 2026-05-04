@@ -17,13 +17,13 @@ from Carts.models import Cart
 @permission_classes([IsAuthenticated])
 def order_list(request):
     if IsCustomer().has_permission(request, None):
-        orders = Order.objects.filter(customer=request.user)
+        orders = Order.objects.filter(customer=request.user).order_by('-order_date')
     elif IsAdmin().has_permission(request, None):
-        orders = Order.objects.all()
-    elif IsVendor.has_permission(request, None):
-        orders = Order.objects.filter(items__product__vendor=request.user)
+        orders = Order.objects.all().order_by('-order_date')
+    elif IsVendor().has_permission(request, None):
+        orders = Order.objects.filter(items__product__vendor=request.user).order_by('-order_date')
     else:
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     paginator = PageNumberPagination()
     paginator.page_size = 5
@@ -36,17 +36,17 @@ def order_list(request):
 @permission_classes([IsAuthenticated])
 def place_order(request):
     if not IsCustomer().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     cart_items = Cart.objects.filter(user=request.user)
     if not cart_items.exists():
-        return Response({'message': 'Cart is empty'}, status=400)
+        return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
     
     address_id = request.data.get('delivery_address')
     try:
         address = Address.objects.get(id=address_id, user=request.user)
     except Address.DoesNotExist:
-        return Response({'message': 'Invalid delivery address'}, status=400)
+        return Response({'message': 'Invalid delivery address'}, status=status.HTTP_400_BAD_REQUEST)
     
     serializer = OrderSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
@@ -67,7 +67,7 @@ def place_order(request):
         cart_items.delete()
         
         return Response(serializer.data)
-    return Response(serializer.errors, status=400)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -76,16 +76,16 @@ def order_detail(request, order_id):
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=404)
+        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if IsCustomer().has_permission(request, None):
         if order.customer != request.user:
-            return Response({'message': 'Permission denied'}, status=403)
+            return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     elif IsVendor().has_permission(request, None):
         if not order.order_items.filter(product__vendor=request.user).exists():
-            return Response({'message': 'Permission denied'}, status=403)
+            return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     elif not IsAdmin().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     items = order.order_items.all()
     order_serializer = OrderSerializer(order)
@@ -101,15 +101,15 @@ def order_detail(request, order_id):
 @permission_classes([IsAuthenticated])
 def cancel_order(request, order_id):
     if not IsCustomer().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
         order = Order.objects.get(id=order_id, customer=request.user)
     except Order.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=404)
+        return Response({'message': 'Order not found'}, status=status.HTTP_403_FORBIDDEN)
     
     if order.status == 'shipped' or order.status == 'delivered':
-        return Response({'message': 'Order cannot be cancelled'}, status=400)
+        return Response({'message': 'Order cannot be cancelled'}, status=status.HTTP_400_BAD_REQUEST)
     
     order.status = 'cancelled'
     order.save()
@@ -120,20 +120,20 @@ def cancel_order(request, order_id):
 @permission_classes([IsAuthenticated])
 def update_order_status(request, order_id):
     if not IsAdmin().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=404)
+        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     
     new_status = request.data.get('status')
     
     if new_status not in ['confirmed', 'shipped', 'delivered']:
-        return Response({'message': 'Invalid status'}, status=400)
+        return Response({'message': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
     
     if order.status == 'cancelled':
-        return Response({'message': 'Cancelled order cannot be updated'}, status=400)
+        return Response({'message': 'Cancelled order cannot be updated'}, status=status.HTTP_400_BAD_REQUEST)
     
     order.status = new_status
     order.save()
@@ -144,25 +144,26 @@ def update_order_status(request, order_id):
 @permission_classes([IsAuthenticated])
 def update_item_status(request, item_id):
     if not IsVendor().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
         item = OrderItem.objects.get(id=item_id)
     except OrderItem.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=404)
+        return Response({'message': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if item.product.vendor != request.user:
-        return Response({'message': 'Permission denied'}, status=403)
+        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     if item.status in ['delivered', 'cancelled']:
-        return Response({'message' : 'Item status cannot be updated'}, status=400)
+        return Response({'message' : 'Item status cannot be updated'}, status=status.HTTP_400_BAD_REQUEST)
     
     new_status = request.data.get('status')
     
     if new_status not in ['confirmed', 'shipped', 'delivered']:
-        return Response({'message': 'Invalid status'}, status=400)
+        return Response({'message': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
     
     item.status = new_status
     item.save()
     return Response({'message': 'Status updated successfully'})
-    
+
+
