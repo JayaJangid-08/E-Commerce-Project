@@ -34,7 +34,7 @@ def add_product(request):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET' , 'PUT'])
@@ -43,13 +43,13 @@ def cart_detail(request, item_id):
     try:
         cart = Cart.objects.get(user=request.user, id=item_id)
     except Cart.DoesNotExist:
-        return Response({'message' : 'Product not found'}, status=404)
+        return Response({'message' : 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
         if not IsCustomer().has_permission(request , None):
             return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         serializer = CartSerializer(cart)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     elif request.method == 'PUT':
         if not IsCustomer().has_permission(request , None):
@@ -57,7 +57,7 @@ def cart_detail(request, item_id):
         serializer = CartSerializer(cart, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -70,9 +70,9 @@ def remove_product(request, item_id):
     try:
         cart = Cart.objects.get(user=request.user, id=item_id)
     except Cart.DoesNotExist:
-        return Response({'message' : 'Product not found'}, status=404)
+        return Response({'message' : 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
     
     cart.delete()
-    return Response({'message' : 'Item removed successfully'})
+    return Response({'message' : 'Item removed successfully'}, status=status.HTTP_200_OK)
 
 
