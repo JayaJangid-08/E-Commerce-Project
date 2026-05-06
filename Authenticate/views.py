@@ -7,7 +7,7 @@ from .serializers import RegistrationSerializer , AddressSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import User , Address
+from .models import User , Address , Role
 from .permissions import IsCustomer
 # Create your views here.
 
@@ -38,6 +38,20 @@ def login(request):
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     elif request.method == 'GET':
         return Response({'message': 'Login View'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def switch_role(request):
+    new_role = request.data.get('role')
+    # Only allow these two
+    if new_role not in ['customer', 'vendor']:
+        return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+    user = request.user
+    # get role object
+    role_obj, _ = Role.objects.get_or_create(name=new_role)
+    user.roles.set([role_obj])
+    return Response({'message': f'Role switched to {new_role}'}, status=status.HTTP_200_OK)
 
 @api_view(['GET' , 'POST'])
 @permission_classes([IsAuthenticated])
