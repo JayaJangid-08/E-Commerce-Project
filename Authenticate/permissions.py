@@ -7,23 +7,22 @@ class IsAuthenticatedBase(permissions.BasePermission):
 
 class IsAdmin(IsAuthenticatedBase):
     def has_permission(self, request, view):
-        return super().has_permission(request, view) and request.user.role == 'admin'
+        return super().has_permission(request, view) and request.user.roles.filter(name='admin').exists()
 
 class IsVendor(IsAuthenticatedBase):
     def has_permission(self, request, view):
-        return super().has_permission(request, view) and request.user.role == 'vendor'
+        return super().has_permission(request, view) and request.user.roles.filter(name='vendor').exists()
 
 class IsCustomer(IsAuthenticatedBase):
     def has_permission(self, request, view):
-        return super().has_permission(request, view) and request.user.role == 'customer'
+        return super().has_permission(request, view) and request.user.roles.filter(name='customer').exists()
 
 class IsVendorOrAdmin(IsAuthenticatedBase):
     def has_permission(self, request, view):
-            return super().has_permission(request, view) and (request.user.role in ['admin', 'vendor'])
+            return super().has_permission(request, view) and (request.user.roles.filter(name__in = ['admin', 'vendor']).exists())
 
     def has_object_permission(self, request, view, obj):
-        return super().has_permission(request, view)and(
-            request.user.role == 'admin' or
-            obj.vendor == request.user
-            )
+        return super().has_permission(request, view) and (
+            request.user.roles.filter(name='admin').exists() or
+            obj.vendor == request.user)
 
