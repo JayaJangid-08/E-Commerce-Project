@@ -21,7 +21,7 @@ def order_list(request):
     elif IsAdmin().has_permission(request, None):
         orders = Order.objects.all().order_by('-order_date')
     elif IsVendor().has_permission(request, None):
-        orders = Order.objects.filter(items__product__vendor=request.user).order_by('-order_date')
+        orders = Order.objects.filter(order_items__product__vendor=request.user).order_by('-order_date')
     else:
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
