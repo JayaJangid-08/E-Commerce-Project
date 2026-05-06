@@ -12,17 +12,19 @@ from Authenticate.permissions import IsAdmin , IsVendorOrAdmin
 
 # Create your views here.
 
+def bump_product_version():
+    if cache.get("product-version") is None:
+        cache.set("product-version", 1)
+    else:
+        cache.incr("product-version")
+
 @api_view(['GET' , 'POST'])
 @permission_classes([IsAuthenticated])
 def product_list(request):
     if request.method == 'GET':
-        version = cache.get("product-version")
-        if version is None :
-            cache.set("product-version", 1)
-            version = 1
-        params = "&".join(
-            f"{key}={value}" for key, value in sorted(request.query_params.items())
-        )
+        version = cache.get("product-version") or 1
+        cache.set("product-version", version)
+        params = request.GET.urlencode()
         cache_key = f"products:v{version}:{params}"
         cached_response = cache.get(cache_key)
         if cached_response:
@@ -36,7 +38,7 @@ def product_list(request):
         max_price = request.query_params.get('max_price')
         ordering = request.query_params.get('ordering', 'created_at')
         if category:
-            products = products.filter(category=category)
+            products = products.filter(category__name__iexact=category)
         if vendor:
             products = products.filter(vendor=vendor)
         if search:
@@ -45,7 +47,12 @@ def product_list(request):
             products = products.filter(price__gte=min_price)
         if max_price:
             products = products.filter(price__lte=max_price)
-        products = products.order_by(ordering) 
+        allowed_ordering = ['price', 'created_at', '-price', '-created_at']
+        ordering = request.query_params.get('ordering', 'created_at')
+        if ordering not in allowed_ordering:
+            ordering = 'created_at'
+
+        products = products.order_by(ordering)
         paginator = PageNumberPagination()
         paginator.page_size = 5
         paginator_products = paginator.paginate_queryset(products , request)
@@ -62,10 +69,7 @@ def product_list(request):
         
         if serializer.is_valid():
             serializer.save(vendor = request.user)
-            if cache.get("product-version") is None:
-                cache.set("product-version", 1)
-            else:
-                cache.incr("product-version")
+            bump_product_version()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -89,10 +93,7 @@ def product_detail(request, product_id):
         serializer = ProductSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            if cache.get("product-version") is None:
-                cache.set("product-version", 1)
-            else:
-                cache.incr("product-version")
+            bump_product_version()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -100,10 +101,7 @@ def product_detail(request, product_id):
         if not IsVendorOrAdmin().has_object_permission(request, None, product):
             return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         product.delete()
-        if cache.get("product-version") is None:
-            cache.set("product-version", 1)
-        else:
-            cache.incr("product-version")
+        bump_product_version()
         return Response({'message': 'Product deleted successfully'})
 
 @api_view(['GET' , 'POST'])
