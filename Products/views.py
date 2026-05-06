@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
+from django.core.cache import cache
 
 from .serializers import ProductSerializer , CategorySerializer
 from .models import Product , Category
@@ -15,6 +16,17 @@ from Authenticate.permissions import IsAdmin , IsVendorOrAdmin
 @permission_classes([IsAuthenticated])
 def product_list(request):
     if request.method == 'GET':
+        version = cache.get("product-version")
+        if version is None :
+            cache.set("product-version", 1)
+            version = 1
+        params = "&".join(
+            f"{key}={value}" for key, value in sorted(request.query_params.items())
+        )
+        cache_key = f"products:v{version}:{params}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return Response(cached_response)
         products = Product.objects.all()
         # Filtering
         category = request.query_params.get('category')
@@ -38,8 +50,10 @@ def product_list(request):
         paginator.page_size = 5
         paginator_products = paginator.paginate_queryset(products , request)
         serializer = ProductSerializer(paginator_products , many=True)
-        return paginator.get_paginated_response(serializer.data)
-    
+        response = paginator.get_paginated_response(serializer.data)
+        cache.set(cache_key, response.data, timeout=60*5)  # Stores for 5 mins
+        return response
+
     elif request.method == 'POST':
         if not IsVendorOrAdmin().has_permission(request, None):
             return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
@@ -48,6 +62,10 @@ def product_list(request):
         
         if serializer.is_valid():
             serializer.save(vendor = request.user)
+            if cache.get("product-version") is None:
+                cache.set("product-version", 1)
+            else:
+                cache.incr("product-version")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -71,14 +89,21 @@ def product_detail(request, product_id):
         serializer = ProductSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            if cache.get("product-version") is None:
+                cache.set("product-version", 1)
+            else:
+                cache.incr("product-version")
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         if not IsVendorOrAdmin().has_object_permission(request, None, product):
             return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
         product.delete()
+        if cache.get("product-version") is None:
+            cache.set("product-version", 1)
+        else:
+            cache.incr("product-version")
         return Response({'message': 'Product deleted successfully'})
 
 @api_view(['GET' , 'POST'])
