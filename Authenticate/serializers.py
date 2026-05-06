@@ -1,12 +1,9 @@
-from .models import User , Address
+from .models import User , Address , Role
 from rest_framework import serializers
 
 class RegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
-    role = serializers.ChoiceField(
-        choices=['vendor', 'customer'],
-        required=False
-    )
+    role = serializers.ChoiceField(choices=['vendor', 'customer'], required=False)
 
     class Meta:
         model = User
@@ -17,12 +14,10 @@ class RegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Email already exists")
         return value
     
-    
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Username already exists")
         return value
-
     
     def validate_role(self, value):
         # Extra safety layer
@@ -31,11 +26,16 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        role = validated_data.pop('role', 'customer')  # remove from dict safely
-
+        role_name = validated_data.pop('role', None)
+        # FORCE DEFAULT ROLE = customer
+        if not role_name:
+            role_name = 'customer'
+        # BLOCK admin completely
+        if role_name == 'admin':
+            raise serializers.ValidationError("Admin cannot be created via signup")
         user = User.objects.create_user(**validated_data)
-        user.role = role
-        user.save()
+        role_obj, _ = Role.objects.get_or_create(name=role_name)
+        user.roles.add(role_obj)
 
         return user
 
