@@ -40,20 +40,19 @@ def add_product(request):
 @api_view(['GET' , 'PUT'])
 @permission_classes([IsAuthenticated])
 def cart_detail(request, item_id):
+    if not IsCustomer().has_permission(request , None):
+            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
     try:
         cart = Cart.objects.get(user=request.user, id=item_id)
     except Cart.DoesNotExist:
         return Response({'message' : 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
-        if not IsCustomer().has_permission(request , None):
-            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         serializer = CartSerializer(cart)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     elif request.method == 'PUT':
-        if not IsCustomer().has_permission(request , None):
-            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         serializer = CartSerializer(cart, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
