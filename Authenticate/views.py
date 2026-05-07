@@ -78,7 +78,7 @@ def address_detail(request, address_id):
     try:
         address = Address.objects.get(id = address_id)
     except Address.DoesNotExist:
-        return Response({'message' : 'Address not found'}, status=404)
+        return Response({'message' : 'Address not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if address.user != request.user:
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
