@@ -58,19 +58,19 @@ def switch_role(request):
 def address_list(request):
     if request.method == 'GET':
         if not IsCustomer().has_permission(request, None):
-            return Response({'message': 'Permission denied'}, status=403)
+            return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         addresses = Address.objects.filter(user=request.user)
         serializer = AddressSerializer(addresses, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
         if not IsCustomer().has_permission(request, None):
-            return Response({'message' : 'Only customer can create address'}, status=403)
+            return Response({'message' : 'Only customer can create address'}, status=status.HTTP_403_FORBIDDEN)
         serializer = AddressSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET' , 'PUT' , 'DELETE'])
 @permission_classes([IsAuthenticated])
