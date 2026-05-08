@@ -22,6 +22,7 @@ def registration(request):
     elif request.method == 'GET':
         return Response({'message': 'Signup View'})
 
+
 @api_view(['GET', 'POST'])
 def login(request):
     if request.method == 'POST':
@@ -53,6 +54,7 @@ def switch_role(request):
     user.roles.set([role_obj])
     return Response({'message': f'Role switched to {new_role}'}, status=status.HTTP_200_OK)
 
+
 @api_view(['GET' , 'POST'])
 @permission_classes([IsAuthenticated])
 def address_list(request):
@@ -71,6 +73,7 @@ def address_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET' , 'PUT' , 'DELETE'])
 @permission_classes([IsAuthenticated])
