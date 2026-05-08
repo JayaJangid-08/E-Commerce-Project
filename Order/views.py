@@ -106,7 +106,7 @@ def cancel_order(request, order_id):
     try:
         order = Order.objects.get(id=order_id, customer=request.user)
     except Order.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if order.status == 'shipped' or order.status == 'delivered':
         return Response({'message': 'Order cannot be cancelled'}, status=status.HTTP_400_BAD_REQUEST)
