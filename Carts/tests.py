@@ -1,7 +1,7 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from Authenticate.models import User
+from Authenticate.models import User, Role
 from Products.models import Product, Category
 from .models import Cart
 
@@ -9,18 +9,20 @@ from .models import Cart
 
 class CartListTest(APITestCase):
     def setUp(self):
+        self.role_vendor, _ = Role.objects.get_or_create(name = 'vendor')
+        self.role_customer, _ = Role.objects.get_or_create(name = 'customer')
         self.vendor = User.objects.create_user(
             username = 'NewVendor',
             email = 'newvendor@gmail.com',
-            password = 'VendorPass',
-            role = 'vendor'
+            password = 'VendorPass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username = 'NewCustomer',
             email = 'newcustomer@gmail.com',
-            password = 'CustomerPass',
-            role = 'customer'
+            password = 'CustomerPass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name = 'Electronic'
         )
@@ -90,24 +92,26 @@ class CartListTest(APITestCase):
 
 class CartDetailTest(APITestCase):
     def setUp(self):
+        self.role_vendor, _ = Role.objects.get_or_create(name = 'vendor')
+        self.role_customer, _ = Role.objects.get_or_create(name = 'customer')
         self.vendor = User.objects.create_user(
             username = 'NewVendor',
             email = 'newvendor@gmail.com',
-            password = 'VendorPass',
-            role = 'vendor'
+            password = 'VendorPass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer_1 = User.objects.create_user(
             username = 'NewCustomer_1',
             email = 'newcustomer1@gmail.com',
-            password = 'CustomerPass1',
-            role = 'customer'
+            password = 'CustomerPass1'
         )
+        self.customer_1.roles.add(self.role_customer)
         self.customer_2 = User.objects.create_user(
             username = 'NewCustomer_2',
             email = 'newcustomer2@gmail.com',
-            password = 'CustomerPass2',
-            role = 'customer'
+            password = 'CustomerPass2'
         )
+        self.customer_2.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name = 'Electronic'
         )
@@ -153,7 +157,7 @@ class CartDetailTest(APITestCase):
         }
         self.client.force_authenticate(user=self.vendor)
         response = self.client.put(f'/carts/cart/{self.cart.id}/', data)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
     
     def test_remove_product_as_customer(self):
         self.client.force_authenticate(user=self.customer_1)
