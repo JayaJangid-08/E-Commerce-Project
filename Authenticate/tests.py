@@ -2,12 +2,15 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 
-from .models import User, Address
+from .models import User, Address, Role
 
 # Create your tests here.
 
 class RegistrationTest(APITestCase):
     def setUp(self):
+        self.role_customer = Role.objects.create(
+            name='customer'
+        )
         self.user = User.objects.create_user(
             username='TestUser',
             password='TestPass',
@@ -19,7 +22,7 @@ class RegistrationTest(APITestCase):
             'username' : 'NewUser',
             'email' : 'newuser01@gmail.com',
             'password' : 'NewPass123',
-            'role' : 'customer'
+            'roles' : 'customer'
         }
         response = self.client.post('/auth/register/', data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -29,7 +32,7 @@ class RegistrationTest(APITestCase):
             'username' : 'TestUser',
             'email' : 'duplicate01@gmail.com',
             'password' : 'DupliPass123',
-            'role' : 'customer'
+            'roles' : 'customer'
         }
         response = self.client.post('/auth/register/', data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -38,7 +41,7 @@ class RegistrationTest(APITestCase):
         data = {
             'username' : 'NewUser',
             'email' : 'newuser01@gmail.com',
-            'role' : 'customer'
+            'roles' : 'customer'
         }
         response = self.client.post('/auth/register/', data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -93,6 +96,8 @@ class AddressListTest(APITestCase):
             phone = '9999999999',
             label = 'home',
         )
+        customer_role = Role.objects.get_or_create(name='customer')[0]
+        self.user.roles.add(customer_role)
         self.client.force_authenticate(user=self.user)
     
     def test_create_address(self):
@@ -125,6 +130,8 @@ class AddressDetailTest(APITestCase):
             password='TestPass',
             email='testuser@email.com'
         )
+        self.customer_role = Role.objects.get_or_create(name='customer')[0]
+        self.user.roles.add(self.customer_role)
         self.address = Address.objects.create(
             user = self.user,
             street = '5-C scheme',
