@@ -1,25 +1,27 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from Authenticate.models import User
+from Authenticate.models import User , Role
 from .models import Product, Category
 
 # Create your tests here.
 
 class ProductListTest(APITestCase):
     def setUp(self):
+        self.role_vendor, _ = Role.objects.get_or_create(name = 'vendor')
+        self.role_customer, _ = Role.objects.get_or_create(name = 'customer')
         self.vendor = User.objects.create_user(
             username = 'NewVendor',
             email = 'newvendor@gmail.com',
-            password = 'VendorPass',
-            role = 'vendor'
+            password = 'VendorPass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username = 'NewCustomer',
             email = 'newcustomer@gmail.com',
-            password = 'CustomerPass',
-            role = 'customer'
+            password = 'CustomerPass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name = 'Electronic'
         )
@@ -70,18 +72,20 @@ class ProductListTest(APITestCase):
 
 class ProductDetailTest(APITestCase):
     def setUp(self):
+        self.role_vendor, _ = Role.objects.get_or_create(name = 'vendor')
+        self.role_customer, _ = Role.objects.get_or_create(name = 'customer')
         self.vendor = User.objects.create_user(
             username = 'NewVendor',
             email = 'newvendor@gmail.com',
-            password = 'VendorPass',
-            role = 'vendor'
-            )
+            password = 'VendorPass'
+        )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username = 'NewCustomer',
             email = 'newcustomer@gmail.com',
-            password = 'CustomerPass',
-            role = 'customer'
+            password = 'CustomerPass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name = 'Electronic'
         )
@@ -141,24 +145,27 @@ class ProductDetailTest(APITestCase):
 
 class CategoryListTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name = 'admin')
+        self.role_vendor, _ = Role.objects.get_or_create(name = 'vendor')
+        self.role_customer, _ = Role.objects.get_or_create(name = 'customer')
         self.admin = User.objects.create_user(
             username = 'Admin01',
             email = 'admin01@gmail.com',
-            password = 'AdminPass',
-            role = 'admin'
+            password = 'AdminPass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username = 'NewVendor',
             email = 'newvendor@gmail.com',
-            password = 'VendorPass',
-            role = 'vendor'
-            )
+            password = 'VendorPass'
+        )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username = 'NewCustomer',
             email = 'newcustomer@gmail.com',
-            password = 'CustomerPass',
-            role = 'customer'
+            password = 'CustomerPass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name = 'Electronic'
         )
@@ -201,18 +208,20 @@ class CategoryListTest(APITestCase):
 
 class CategoryDetailTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name = 'admin')
+        self.role_vendor, _= Role.objects.get_or_create(name = 'vendor')
         self.admin = User.objects.create_user(
             username = 'Admin01',
             email = 'admin01@gmail.com',
-            password = 'AdminPass',
-            role = 'admin'
+            password = 'AdminPass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username = 'NewVendor',
             email = 'newvendor@gmail.com',
-            password = 'VendorPass',
-            role = 'vendor'
-            )
+            password = 'VendorPass'
+        )
+        self.vendor.roles.add(self.role_vendor)
         self.category = Category.objects.create(
             name = 'Electronic'
         )
