@@ -2,7 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 
 from Products.models import Product , Category
-from Authenticate.models import User , Address
+from Authenticate.models import User , Address , Role
 from Order.models import Order , OrderItem
 from Carts.models import Cart
 
@@ -10,24 +10,27 @@ from Carts.models import Cart
 
 class OrderListTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name='admin') 
+        self.role_vendor, _ = Role.objects.get_or_create(name='vendor') 
+        self.role_customer, _ = Role.objects.get_or_create(name='customer') 
         self.admin = User.objects.create_user(
-            username='admin',
+            username='admin01',
             email='admin@gmail.com',
-            password='adminpass',
-            role='admin'
+            password='adminpass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username='vendor',
             email='vendor@gmail.com',
-            password='vendorpass',
-            role='vendor'
+            password='vendorpass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username='customer',
             email='customer@gmail.com',
-            password='customerpass',
-            role='customer'
+            password='customerpass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name='Electronics'
         )
@@ -74,24 +77,27 @@ class OrderListTest(APITestCase):
 
 class OrderDetailTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name='admin') 
+        self.role_vendor, _ = Role.objects.get_or_create(name='vendor') 
+        self.role_customer, _ = Role.objects.get_or_create(name='customer') 
         self.admin = User.objects.create_user(
-            username='admin',
+            username='admin01',
             email='admin@gmail.com',
-            password='adminpass',
-            role='admin'
+            password='adminpass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username='vendor',
             email='vendor@gmail.com',
-            password='vendorpass',
-            role='vendor'
+            password='vendorpass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username='customer',
             email='customer@gmail.com',
-            password='customerpass',
-            role='customer'
+            password='customerpass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name='Electronics'
         )
@@ -145,30 +151,33 @@ class OrderDetailTest(APITestCase):
 
 class OrderStatusCancelTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name='admin') 
+        self.role_vendor, _ = Role.objects.get_or_create(name='vendor') 
+        self.role_customer, _ = Role.objects.get_or_create(name='customer') 
         self.admin = User.objects.create_user(
-            username='admin',
+            username='admin01',
             email='admin@gmail.com',
-            password='adminpass',
-            role='admin'
+            password='adminpass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username='vendor',
             email='vendor@gmail.com',
-            password='vendorpass',
-            role='vendor'
+            password='vendorpass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer_1 = User.objects.create_user(
             username='customer1',
             email='customer1@gmail.com',
-            password='customer1pass',
-            role='customer'
+            password='customer1pass'
         )
+        self.customer_1.roles.add(self.role_customer)
         self.customer_2 = User.objects.create_user(
             username='customer2',
             email='customer2@gmail.com',
-            password='customer2pass',
-            role='customer'
+            password='customer2pass'
         )
+        self.customer_2.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name='Electronics'
         )
@@ -207,6 +216,8 @@ class OrderStatusCancelTest(APITestCase):
     def test_customer_can_cancel_own_order(self):
         self.client.force_authenticate(user=self.customer_1)
         response = self.client.put(f'/orders/{self.order.id}/cancel/')
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, 'cancelled')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
     
     def test_cannot_cancel_shipped_order(self):
@@ -233,7 +244,7 @@ class OrderStatusCancelTest(APITestCase):
     def test_customer_cannot_cancel_other_users_order(self):
         self.client.force_authenticate(user=self.customer_2)
         response = self.client.put(f'/orders/{self.order.id}/cancel/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
     def test_vendor_cannot_cancel_order(self):
         self.client.force_authenticate(user=self.vendor)
@@ -253,7 +264,7 @@ class OrderStatusCancelTest(APITestCase):
     def test_cancel_with_invalid_order_id(self):
         self.client.force_authenticate(user=self.customer_1)
         response = self.client.put(f'/orders/999/cancel/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_invalid_url_for_cancel_order(self):
         self.client.force_authenticate(user=self.customer_1)
@@ -263,30 +274,33 @@ class OrderStatusCancelTest(APITestCase):
 
 class PlaceOrderTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name='admin') 
+        self.role_vendor, _ = Role.objects.get_or_create(name='vendor') 
+        self.role_customer, _ = Role.objects.get_or_create(name='customer') 
         self.admin = User.objects.create_user(
-            username='admin',
+            username='admin01',
             email='admin@gmail.com',
-            password='adminpass',
-            role='admin'
+            password='adminpass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username='vendor',
             email='vendor@gmail.com',
-            password='vendorpass',
-            role='vendor'
+            password='vendorpass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer_1 = User.objects.create_user(
             username='customer1',
             email='customer1@gmail.com',
-            password='customer1pass',
-            role='customer'
+            password='customer1pass'
         )
+        self.customer_1.roles.add(self.role_customer)
         self.customer_2 = User.objects.create_user(
             username='customer2',
             email='customer2@gmail.com',
-            password='customer2pass',
-            role='customer'
+            password='customer2pass'
         )
+        self.customer_2.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name='Electronics'
         )
@@ -392,24 +406,27 @@ class PlaceOrderTest(APITestCase):
 
 class OrderStatusUpdateTest(APITestCase):
     def setUp(self):
+        self.role_admin, _ = Role.objects.get_or_create(name='admin') 
+        self.role_vendor, _ = Role.objects.get_or_create(name='vendor') 
+        self.role_customer, _ = Role.objects.get_or_create(name='customer') 
         self.admin = User.objects.create_user(
-            username='admin',
+            username='admin01',
             email='admin@gmail.com',
-            password='adminpass',
-            role='admin'
+            password='adminpass'
         )
+        self.admin.roles.add(self.role_admin)
         self.vendor = User.objects.create_user(
             username='vendor',
             email='vendor@gmail.com',
-            password='vendorpass',
-            role='vendor'
+            password='vendorpass'
         )
+        self.vendor.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username='customer',
             email='customer@gmail.com',
-            password='customerpass',
-            role='customer'
+            password='customerpass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name='Electronics'
         )
@@ -451,6 +468,8 @@ class OrderStatusUpdateTest(APITestCase):
         }
         self.client.force_authenticate(user=self.admin)
         response = self.client.put(f'/orders/{self.order.id}/status/', data)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, 'confirmed')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_update_order_status_as_customer(self):
@@ -497,24 +516,26 @@ class OrderStatusUpdateTest(APITestCase):
 
 class OrderItemStatusUpdateTest(APITestCase):
     def setUp(self):
+        self.role_vendor, _ = Role.objects.get_or_create(name='vendor') 
+        self.role_customer, _ = Role.objects.get_or_create(name='customer') 
         self.vendor_1 = User.objects.create_user(
             username='vendor01',
             email='vendor01@gmail.com',
-            password='vendor01pass',
-            role='vendor'
+            password='vendor01pass'
         )
+        self.vendor_1.roles.add(self.role_vendor)
         self.vendor_2 = User.objects.create_user(
             username='vendor02',
             email='vendor02@gmail.com',
-            password='vendor02pass',
-            role='vendor'
+            password='vendor02pass'
         )
+        self.vendor_2.roles.add(self.role_vendor)
         self.customer = User.objects.create_user(
             username='customer',
             email='customer@gmail.com',
-            password='customerpass',
-            role='customer'
+            password='customerpass'
         )
+        self.customer.roles.add(self.role_customer)
         self.category = Category.objects.create(
             name='Electronics'
         )
@@ -549,13 +570,15 @@ class OrderItemStatusUpdateTest(APITestCase):
             status='pending'
         )
         self.client.force_authenticate(user=self.customer)
-    
+
     def test_update_item_status_as_vendor(self):
         data = {
             'status' : 'confirmed'
         }
         self.client.force_authenticate(user=self.vendor_1)
         response = self.client.put(f'/orders/item/{self.item.id}/status/', data)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, 'confirmed')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_update_item_status_as_customer(self):
@@ -566,7 +589,7 @@ class OrderItemStatusUpdateTest(APITestCase):
         response = self.client.put(f'/orders/item/{self.item.id}/status/', data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_update_item_status_as_othen_vendor(self):
+    def test_update_item_status_as_other_vendor(self):
         data = {
             'status' : 'confirmed'
         }
