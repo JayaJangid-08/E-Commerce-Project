@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
+from django.db import transaction
 
 from .models import Order , OrderItem
 from .serializers import OrderSerializer , OrderItemSerializer
@@ -54,18 +55,21 @@ def place_order(request):
         order = serializer.save(customer=request.user)
         total = 0
         # CREATE ORDER ITEMS
-        for item in cart_items:
-
-            if not item.product:
-                continue
-            OrderItem.objects.create(
-                order=order,
-                product=item.product,
-                quantity=item.quantity,
-                price=item.product.price
-            )
-            total += item.product.price * item.quantity
-        
+        try:
+            with transaction.atomic():
+                for item in cart_items:
+                    print("ITEM:", item.product_id, item.quantity)
+                    if not item.product:
+                        raise Exception("Product is None")
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        quantity=item.quantity,
+                        price=item.product.price
+                    )
+        except Exception as e:
+                print("ORDER FAILED:", str(e))
+                raise
         order.total_price = total
         order.save()
 
