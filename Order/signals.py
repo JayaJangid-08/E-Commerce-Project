@@ -5,12 +5,15 @@ from .email import send_order_confirmation_email
 
 @receiver(post_save, sender=Order)
 def order_placedd(sender, instance, created, **kwargs):
-    # Only when users are added
     if created:
-            print("EMAIL TRIGGERED")
-            send_order_confirmation_email.delay(
-                username= instance.customer.username,
-                email= instance.customer.email,
-                order_id= instance.id,
+        print("EMAIL TRIGGERED")
+        try:
+            send_order_confirmation_email(
+                username=instance.customer.username,
+                email=instance.customer.email,
+                order_id=instance.id,
             )
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+
 
