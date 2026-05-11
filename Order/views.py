@@ -53,15 +53,21 @@ def place_order(request):
         order = serializer.save(customer=request.user)
         total = 0
         for item in cart_items:
-            print("ITEM FOUND:", item.product_id, item.quantity)
-            oi= OrderItem.objects.create(
+            try:
+                print("ITEM:", item.product_id, item.quantity)
+
+                OrderItem.objects.create(
                     order=order,
                     product=item.product,
                     quantity=item.quantity,
                     price=item.product.price
-                )
-            print("ORDER ITEM CREATED:", oi.id)
-            total += item.product.price * item.quantity
+                )   
+                total += item.product.price * item.quantity
+
+                print("CREATED ITEM OK")
+
+            except Exception as e:
+                print("ORDER ITEM ERROR:", str(e))
         
         order.total_price = total
         order.save()
