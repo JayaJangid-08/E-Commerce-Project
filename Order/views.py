@@ -4,7 +4,6 @@ from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from django.db import transaction
 
 from .models import Order , OrderItem
 from .serializers import OrderSerializer , OrderItemSerializer
@@ -38,47 +37,36 @@ def order_list(request):
 def place_order(request):
     if not IsCustomer().has_permission(request, None):
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
+    
     cart_items = Cart.objects.filter(user=request.user)
     if not cart_items.exists():
         return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
-
+    
     address_id = request.data.get('delivery_address')
     try:
         address = Address.objects.get(id=address_id, user=request.user)
     except Address.DoesNotExist:
         return Response({'message': 'Invalid delivery address'}, status=status.HTTP_400_BAD_REQUEST)
-
+    
     serializer = OrderSerializer(data=request.data, context={'request': request})
-
     if serializer.is_valid():
         order = serializer.save(customer=request.user)
         total = 0
-        # CREATE ORDER ITEMS
-        try:
-            with transaction.atomic():
-                for item in cart_items:
-                    print("ITEM:", item.product_id, item.quantity)
-                    if not item.product:
-                        raise Exception("Product is None")
-                    OrderItem.objects.create(
-                        order=order,
-                        product=item.product,
-                        quantity=item.quantity,
-                        price=item.product.price
-                    )
-        except Exception as e:
-                print("ORDER FAILED:", str(e))
-                raise
+        for item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                price=item.product.price
+            )
+            total += item.product.price * item.quantity
+        
         order.total_price = total
         order.save()
 
         cart_items.delete()
-        order_items = OrderItem.objects.filter(order=order)
-        return Response({
-            "order": OrderSerializer(order).data,
-            "items": OrderItemSerializer(order_items, many=True).data
-        })
+        
+        return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
