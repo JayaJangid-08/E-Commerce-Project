@@ -99,21 +99,20 @@ def order_detail(request, order_id):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-def cancel_order(request, order_id):
+def cancel_order_item(request, item_id):
     if not IsCustomer().has_permission(request, None):
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        order = Order.objects.get(id=order_id, customer=request.user)
-    except Order.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-    if order.status == 'shipped' or order.status == 'delivered':
+        item = OrderItem.objects.get(id=item_id, order__customer=request.user)
+    except OrderItem.DoesNotExist:
+        return Response({'message': 'Order item not found'}, status=status.HTTP_404_NOT_FOUND)
+    if item.status in ['shipped', 'delivered']:
         return Response({'message': 'Order cannot be cancelled'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    order.status = 'cancelled'
-    order.save()
-    return Response({'message': 'Order cancelled successfully'})
+
+    item.status = 'cancelled'
+    item.save()
+    return Response({'message': 'Order item cancelled successfully'}, status=status.HTTP_200_OK)
 
 # Only admin can update status here
 @api_view(['PUT'])
