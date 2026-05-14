@@ -1,6 +1,7 @@
 from django.db import models
 from Products.models import Product
 from Authenticate.models import User , Address
+from Discount.models import Discount
 
 # Create your models here.
 
@@ -18,6 +19,8 @@ class Order(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     order_date = models.DateField(auto_now_add=True)
+    discounted_price = models.IntegerField()
+    final_price = models.IntegerField()
 
     def __str__(self):
         return f"{self.customer.username}"
