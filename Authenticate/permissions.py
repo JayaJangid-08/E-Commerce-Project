@@ -25,4 +25,23 @@ class IsVendorOrAdmin(IsAuthenticatedBase):
         return super().has_permission(request, view) and (
             request.user.roles.filter(name='admin').exists() or
             obj.vendor == request.user)
+    
+class IsDiscountOwnerOrAdmin(IsAuthenticatedBase):
+    def has_permission(self, request, view):
+            return super().has_permission(request, view) and (request.user.roles.filter(name__in = ['admin', 'vendor']).exists())
+
+    def has_object_permission(self, request, view, obj):
+        return super().has_permission(request, view) and(
+            request.user.roles.filter(name='admin').exists()
+            or obj.creator == request.user
+        )
+class IsReviewOwnerOrAdmin(IsAuthenticatedBase):
+    def has_permission(self, request, view):
+            return super().has_permission(request, view) and (request.user.roles.filter(name__in = ['admin', 'vendor']).exists())
+
+    def has_object_permission(self, request, view, obj):
+        return super().has_permission(request, view) and(
+            request.user.roles.filter(name='admin').exists()
+            or obj.user == request.user
+        )
 
