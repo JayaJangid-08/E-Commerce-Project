@@ -3,12 +3,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
-from .serializers import RegistrationSerializer , AddressSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import User , Address , Role
-from .permissions import IsCustomer
+from .models import Address , Role
+from .serializers import RegistrationSerializer , AddressSerializer
+from .permissions import IsCustomer , IsAdmin
 # Create your views here.
 
 @api_view(['GET', 'POST'])
