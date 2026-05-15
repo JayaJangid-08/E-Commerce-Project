@@ -40,8 +40,10 @@ AUTH_USER_MODEL = 'Authenticate.User'
 INSTALLED_APPS = [
     'Authenticate',
     'Carts',
+    'Discount',
     'Order',
     'Products',
+    'Reviews',
     'django_filters',
     'rest_framework',
     'django.contrib.admin',
