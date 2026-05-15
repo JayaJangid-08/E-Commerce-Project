@@ -63,6 +63,16 @@ class AddressSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Maximum 5 addresses are allowed")
         return data
     
+    def validate_latitude(self, value):
+        if value < -90 or value > 90:
+            raise serializers.ValidationError("Invalid latitude")
+        return value
+
+    def validate_longitude(self, value):
+        if value < -180 or value > 180:
+            raise serializers.ValidationError("Invalid longitude")
+        return value
+    
     def create(self, validated_data):
         user = self.context['request'].user
         return Address.objects.create(user=user, **validated_data)
