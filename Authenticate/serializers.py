@@ -43,7 +43,7 @@ class AddressSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     class Meta : 
         model = Address
-        fields = ['id', 'street', 'city', 'state', 'pincode', 'phone', 'label']
+        fields = ['id', 'street', 'city', 'state', 'pincode', 'phone', 'label', 'latitude', 'longitude']
     
     def validate_pincode(self, value):
         if not value.isdigit() or len(value) != 6:
