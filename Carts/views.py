@@ -28,9 +28,11 @@ def add_product(request):
         if not IsCustomer().has_permission(request, None):
             return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
         product_id = request.data.get('product')
+        
         if Cart.objects.filter(user=request.user, product_id=product_id).exists():
             return Response({'message': 'Product already in cart'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CartSerializer(data=request.data, context={'request': request})
+        
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
