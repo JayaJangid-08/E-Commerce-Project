@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 
-from .models import Order , OrderItem
-from .serializers import OrderSerializer , OrderItemSerializer
+from .models import Order , OrderItem , OrderAddress
+from .serializers import OrderSerializer , OrderItemSerializer , OrderAddressSerializer
 from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor , IsVendorOrAdmin
 from Authenticate.models import Address
 from Carts.models import Cart
@@ -39,35 +39,46 @@ def place_order(request):
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
     cart_items = Cart.objects.filter(user=request.user)
+    
     if not cart_items.exists():
         return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
     
-    address_id = request.data.get('delivery_address')
+    # Frontend sends address_id
+    address_id = request.data.get('address_id')
     try:
         address = Address.objects.get(id=address_id, user=request.user)
     except Address.DoesNotExist:
         return Response({'message': 'Invalid delivery address'}, status=status.HTTP_400_BAD_REQUEST)
     
-    serializer = OrderSerializer(data=request.data, context={'request': request})
-    if serializer.is_valid():
-        order = serializer.save(customer=request.user)
-        total = 0
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                product=item.product,
-                quantity=item.quantity,
-                price=item.product.price
-            )
-            total += item.product.price * item.quantity
-        
-        order.total_price = total
-        order.save()
+    order_address = OrderAddress.objects.create(
+        full_name=request.user.username,
+        street=address.street,
+        city=address.city,
+        state=address.state,
+        pincode=address.pincode,
+        latitude=address.latitude,
+        longitude=address.longitude,
+        phone=address.phone
+    )
+    order = Order.objects.create(customer=request.user, delivery_address=order_address)
+    total = 0
+    for item in cart_items:
+        OrderItem.objects.create(
+            order=order,
+            product=item.product,
+            quantity=item.quantity,
+            price=item.product.price
+        )
+        total += item.product.price * item.quantity
+    
+    order.total_price = total
+    order.final_price = total
+    order.save()
 
-        cart_items.delete()
-        
-        return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    cart_items.delete()
+
+    serializer = OrderSerializer(order)
+    return Response(serializer.data)
 
 
 @api_view(['GET'])
