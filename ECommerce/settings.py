@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'Order',
     'Products',
     'Reviews',
+    'Warehouses',
     'django_filters',
     'rest_framework',
     'django.contrib.admin',
