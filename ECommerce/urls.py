@@ -31,7 +31,10 @@ urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),
     path('auth/', include('Authenticate.urls')),
+    path('warehouses/', include('Warehouses.urls')),
     path('products/', include('Products.urls')),
     path('carts/', include('Carts.urls')),
     path('orders/', include('Order.urls')),
+    path('discount/', include('Discount.urls')),
+    path('reviews/', include('Reviews.urls'))
 ]
