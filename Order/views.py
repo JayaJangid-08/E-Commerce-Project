@@ -10,6 +10,8 @@ from .serializers import OrderSerializer , OrderItemSerializer , OrderAddressSer
 from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor , IsVendorOrAdmin
 from Authenticate.models import Address
 from Carts.models import Cart
+from Discount.views import validate_coupon
+
 
 # Create your views here.
 
@@ -66,8 +68,13 @@ def place_order(request):
         OrderItem.objects.create(
             order=order,
             product=item.product,
-            quantity=item.quantity,
-            price=item.product.price
+            product_name=item.product.name,
+            product_description=item.product.description,
+            product_price=item.product.price,
+            product_image=item.product.image,
+            product_category=item.product.category.name,
+            vendor_name=item.product.vendor.username,
+            quantity=item.quantity
         )
         total += item.product.price * item.quantity
     
@@ -175,5 +182,48 @@ def update_item_status(request, item_id):
     item.status = new_status
     item.save()
     return Response({'message': 'Status updated successfully'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def preview_order(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Order owner check
+    if order.customer != request.user:
+        return Response({'message': 'Permission denied'},status=status.HTTP_403_FORBIDDEN)
+
+    subtotal = order.total_price
+    shipping_charge = 100
+    discount_amount = 0
+    final_price = subtotal + shipping_charge
+
+    coupon_name = request.query_params.get('coupon')
+
+    # Coupon preview
+    if coupon_name:
+        result = validate_coupon(order, coupon_name)
+        if not result['success']:
+            return Response({'message': result['message']}, status=status.HTTP_400_BAD_REQUEST)
+        discount_amount = result['discount_amount']
+        final_price = (subtotal + shipping_charge - discount_amount)
+        return Response({
+            'coupon': result['coupon_name'],
+            'subtotal': subtotal,
+            'shipping_charge': shipping_charge,
+            'discount_amount': discount_amount,
+            'final_price': final_price
+        })
+
+    # Without coupon preview
+    return Response({
+        'subtotal': subtotal,
+        'shipping_charge': shipping_charge,
+        'discount_amount': discount_amount,
+        'final_price': final_price
+    })
 
 
