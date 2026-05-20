@@ -45,3 +45,10 @@ class IsReviewOwnerOrAdmin(IsAuthenticatedBase):
             or obj.user == request.user
         )
 
+class IsAdminOrOwner(IsAuthenticatedBase):
+    def has_object_permission(self, request, view, obj):
+        return (
+            request.user.roles.filter(name='admin').exists() or
+            obj.order.customer == request.user
+        )
+
