@@ -3,11 +3,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
 
 from .models import Order , OrderItem , OrderAddress
 from .serializers import OrderSerializer , OrderItemSerializer , OrderAddressSerializer
 from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor , IsVendorOrAdmin
+from .services.pricing import apply_pricing , build_items_from_cart , get_eligible_items , calculate_discount
+from Discount.models import Discount
 from Authenticate.models import Address
 from Carts.models import Cart
 from Discount.views import validate_coupon
@@ -35,57 +38,69 @@ def order_list(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated , IsCustomer])
 def place_order(request):
-    if not IsCustomer().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
-    cart_items = Cart.objects.filter(user=request.user)
+    cart_items = Cart.objects.filter(user=request.user) 
     
     if not cart_items.exists():
         return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
     
     # Frontend sends address_id
     address_id = request.data.get('address_id')
+    coupon_name = request.data.get('coupon')
     try:
         address = Address.objects.get(id=address_id, user=request.user)
     except Address.DoesNotExist:
         return Response({'message': 'Invalid delivery address'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    order_address = OrderAddress.objects.create(
-        full_name=request.user.username,
-        street=address.street,
-        city=address.city,
-        state=address.state,
-        pincode=address.pincode,
-        latitude=address.latitude,
-        longitude=address.longitude,
-        phone=address.phone
-    )
-    order = Order.objects.create(customer=request.user, delivery_address=order_address)
-    total = 0
+
+    items = build_items_from_cart(cart_items)
+    pricing = apply_pricing(items, coupon_name)
+    if pricing.get("error"):
+        return Response({'message': pricing['error']}, status=status.HTTP_400_BAD_REQUEST)
+    coupon = pricing.get("coupon_obj")
+
     for item in cart_items:
-        OrderItem.objects.create(
-            order=order,
-            product=item.product,
-            product_name=item.product.name,
-            product_description=item.product.description,
-            product_price=item.product.price,
-            product_image=item.product.image,
-            product_category=item.product.category.name,
-            vendor_name=item.product.vendor.username,
-            quantity=item.quantity
-        )
-        total += item.product.price * item.quantity
+        if item.product.stock < item.quantity:
+            return Response({'message':f'Insufficient stock for {item.product.name}'}, status=status.HTTP_400_BAD_REQUEST)    
     
-    order.total_price = total
-    order.final_price = total
-    order.save()
-
-    cart_items.delete()
-
-    serializer = OrderSerializer(order)
-    return Response(serializer.data)
+    with transaction.atomic():
+        order_address = OrderAddress.objects.create(
+            full_name=request.user.username,
+            street=address.street,
+            city=address.city,
+            state=address.state,
+            pincode=address.pincode,
+            latitude=address.latitude,
+            longitude=address.longitude,
+            phone=address.phone
+        )
+        order = Order.objects.create(
+                customer=request.user,
+                delivery_address=order_address,
+                total_price=pricing['subtotal'],
+                final_price=pricing['final_price']
+            )
+        for item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                product_name=item.product.name,
+                product_description=item.product.description,
+                product_price=item.product.price,
+                product_image=str(item.product.image),
+                product_category=item.product.category.name,
+                vendor_name=item.product.vendor.username,
+                quantity=item.quantity
+            )
+            item.product.stock -= item.quantity
+            item.product.save()
+        
+        if coupon:
+            coupon.used_count += 1
+            coupon.save()
+        
+        cart_items.delete() 
+    return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -132,6 +147,7 @@ def cancel_order_item(request, item_id):
     item.save()
     return Response({'message': 'Order item cancelled successfully'}, status=status.HTTP_200_OK)
 
+
 # Only admin can update status here
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
@@ -156,6 +172,7 @@ def update_order_status(request, order_id):
     order.save()
     return Response({'message': 'Status updated successfully'})
     
+
 # Only vendor those item are in order can update item status here
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
@@ -186,44 +203,17 @@ def update_item_status(request, item_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def preview_order(request, order_id):
-    try:
-        order = Order.objects.get(id=order_id)
-    except Order.DoesNotExist:
-        return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+def preview_order(request, cart_id):
+    cart_items = Cart.objects.filter(user=request.user)
+    if not cart_items.exists():
+        return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Order owner check
-    if order.customer != request.user:
-        return Response({'message': 'Permission denied'},status=status.HTTP_403_FORBIDDEN)
-
-    subtotal = order.total_price
-    shipping_charge = 100
-    discount_amount = 0
-    final_price = subtotal + shipping_charge
-
-    coupon_name = request.query_params.get('coupon')
-
-    # Coupon preview
-    if coupon_name:
-        result = validate_coupon(order, coupon_name)
-        if not result['success']:
-            return Response({'message': result['message']}, status=status.HTTP_400_BAD_REQUEST)
-        discount_amount = result['discount_amount']
-        final_price = (subtotal + shipping_charge - discount_amount)
-        return Response({
-            'coupon': result['coupon_name'],
-            'subtotal': subtotal,
-            'shipping_charge': shipping_charge,
-            'discount_amount': discount_amount,
-            'final_price': final_price
-        })
-
-    # Without coupon preview
-    return Response({
-        'subtotal': subtotal,
-        'shipping_charge': shipping_charge,
-        'discount_amount': discount_amount,
-        'final_price': final_price
-    })
+    coupon_name = request.query_params.get('coupon') 
+    items = build_items_from_cart(cart_items)
+    pricing = apply_pricing(items, coupon_name)
+    if pricing.get("error"):
+        return Response({'message': pricing['error']}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response(pricing, status=status.HTTP_200_OK)
 
 
