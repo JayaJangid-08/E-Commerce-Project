@@ -29,11 +29,11 @@ class OrderAddress(models.Model):
 
 class Order(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
-    delivery_address = models.OneToOneField(OrderAddress, on_delete=models.CASCADE)
+    delivery_address = models.ForeignKey(OrderAddress, on_delete=models.CASCADE)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     order_date = models.DateField(auto_now_add=True)
-    discounted_price = models.DecimalField(default=0, max_digits=10, decimal_places=2)
+    discount_amount = models.DecimalField(default=0, max_digits=10, decimal_places=2)
     final_price = models.DecimalField(default=0, max_digits=10, decimal_places=2)
 
     def __str__(self):
