@@ -11,22 +11,18 @@ from .serializers import CartSerializer
 # Create your views here.
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCustomer])
 def cart_list(request):
-    if request.method == 'GET':
-        if not IsCustomer().has_permission(request , None):
-            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    if request.method == 'GET': 
         cart = Cart.objects.filter(user=request.user)
         serializer = CartSerializer(cart, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCustomer])
 def add_product(request):
-    if request.method == 'POST':
-        if not IsCustomer().has_permission(request, None):
-            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    if request.method == 'POST': 
         product_id = request.data.get('product')
         
         if Cart.objects.filter(user=request.user, product_id=product_id).exists():
@@ -40,12 +36,9 @@ def add_product(request):
 
 
 @api_view(['GET' , 'PUT'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCustomer])
 def cart_detail(request, item_id):
-    if not IsCustomer().has_permission(request , None):
-            return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
-    try:
+    try: 
         cart = Cart.objects.get(user=request.user, id=item_id)
     except Cart.DoesNotExist:
         return Response({'message' : 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -63,17 +56,14 @@ def cart_detail(request, item_id):
 
 
 @api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCustomer])
 def remove_product(request, item_id):
-    if not IsCustomer().has_permission(request, None):
-        return Response({'message' : 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-
-    try:
+    try: 
         cart = Cart.objects.get(user=request.user, id=item_id)
     except Cart.DoesNotExist:
         return Response({'message' : 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
     
     cart.delete()
-    return Response({'message' : 'Item removed successfully'}, status=status.HTTP_200_OK)
+    return Response({'message' : 'Item removed successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
