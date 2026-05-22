@@ -13,7 +13,6 @@ from .services.pricing import apply_pricing , build_items_from_cart , get_eligib
 from Discount.models import Discount
 from Authenticate.models import Address
 from Carts.models import Cart
-from Discount.views import validate_coupon
 
 
 # Create your views here.
@@ -171,7 +170,7 @@ def update_order_status(request, order_id):
     order.status = new_status
     order.save()
     return Response({'message': 'Status updated successfully'})
-    
+
 
 # Only vendor those item are in order can update item status here
 @api_view(['PUT'])
@@ -203,7 +202,7 @@ def update_item_status(request, item_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def preview_order(request, cart_id):
+def preview_order(request):
     cart_items = Cart.objects.filter(user=request.user)
     if not cart_items.exists():
         return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
@@ -216,4 +215,19 @@ def preview_order(request, cart_id):
     
     return Response(pricing, status=status.HTTP_200_OK)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def preview_single_item_order(request, cart_id):
+    cart_items = Cart.objects.filter(id=cart_id, user=request.user)
+    if not cart_items.exists():
+        return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+    coupon_name = request.query_params.get('coupon') 
+    items = build_items_from_cart(cart_items)
+    pricing = apply_pricing(items, coupon_name)
+    if pricing.get("error"):
+        return Response({'message': pricing['error']}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response(pricing, status=status.HTTP_200_OK)
 
