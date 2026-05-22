@@ -129,18 +129,17 @@ def order_detail(request, order_id):
     })
 
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def cancel_order_item(request, item_id):
-    if not IsCustomer().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsCustomer])
+def cancel_order_item(request, item_id): 
     try:
         item = OrderItem.objects.get(id=item_id, order__customer=request.user)
     except OrderItem.DoesNotExist:
         return Response({'message': 'Order item not found'}, status=status.HTTP_404_NOT_FOUND)
     if item.status in ['shipped', 'delivered']:
         return Response({'message': 'Order cannot be cancelled'}, status=status.HTTP_400_BAD_REQUEST)
+    if item.status == 'cancelled':
+        return Response({'message': 'Cancelled order cannot be cancel again'}, status=status.HTTP_400_BAD_REQUEST)
 
     item.status = 'cancelled'
     item.save()
@@ -148,12 +147,9 @@ def cancel_order_item(request, item_id):
 
 
 # Only admin can update status here
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsAdmin])
 def update_order_status(request, order_id):
-    if not IsAdmin().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
@@ -173,12 +169,9 @@ def update_order_status(request, order_id):
 
 
 # Only vendor those item are in order can update item status here
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsVendor])
 def update_item_status(request, item_id):
-    if not IsVendor().has_permission(request, None):
-        return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
     try:
         item = OrderItem.objects.get(id=item_id)
     except OrderItem.DoesNotExist:
