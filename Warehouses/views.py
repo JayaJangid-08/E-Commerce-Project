@@ -7,14 +7,16 @@ from django.db import transaction
 
 from Products.models import Product
 from Authenticate.models import User
-from .models import Warehouse , Inventory , StockMovement , StaffWarehouse
-from .serializers import WarehouseSerializer , InventorySerializer , StockMovementSerializer
-from Authenticate.permissions import IsAdmin , IsAdminOrAssignedStaff
+from .models import Warehouse, Inventory, StockMovement, StaffWarehouse
+from .serializers import WarehouseSerializer, InventorySerializer, StockMovementSerializer
+from Authenticate.permissions import IsAdmin, IsAdminOrAssignedStaff
 
 # Create your views here.
 
 def get_user_warehouses(user):
-    return Warehouse.objects.filter(staffwarehouse__staff=user)
+    """Get all warehouses assigned to a user"""
+    return Warehouse.objects.filter(warehouse_staff__staff=user)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdmin])
@@ -23,9 +25,10 @@ def assign_warehouse_to_staff(request):
     warehouse_id = request.data.get('warehouse')
     try:
         staff = User.objects.get(id=staff_id)
-        warehouse = Warehouse.objects.get(id=warehouse_id)
     except User.DoesNotExist:
         return Response({'message': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        warehouse = Warehouse.objects.get(id=warehouse_id)
     except Warehouse.DoesNotExist:
         return Response({'message': 'Warehouse not found'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -34,7 +37,8 @@ def assign_warehouse_to_staff(request):
         return Response({'message': 'Already assigned'}, status=status.HTTP_400_BAD_REQUEST)
     
     StaffWarehouse.objects.create(staff=staff, warehouse=warehouse)
-    return Response({"message": "Assigned successfully"})
+    return Response({"message" : "Assigned successfully"}, status=status.HTTP_201_CREATED)
+
 
 @api_view(['GET','POST'])
 @permission_classes([IsAuthenticated, IsAdmin])
@@ -58,7 +62,7 @@ def warehouse_detail(request, warehouse_id):
     try:
         warehouse = Warehouse.objects.get(id = warehouse_id)
     except Warehouse.DoesNotExist:
-        return Response({'message' : 'Warehouse address not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'message' : 'Warehouse not found'}, status=status.HTTP_404_NOT_FOUND)
     
     if request.method == 'GET':
         serializer = WarehouseSerializer(warehouse)
@@ -73,7 +77,7 @@ def warehouse_detail(request, warehouse_id):
 
     elif request.method == 'DELETE':
         warehouse.delete()
-        return Response({'message' : 'Warehouse address Deleted successfully'})
+        return Response({'message' : 'Warehouse Deleted successfully'})
 
 
 @api_view(['GET'])
@@ -82,7 +86,8 @@ def inventory_list(request):
     if request.user.roles.filter(name='admin').exists():
         inventory = Inventory.objects.all()
     else:
-        inventory = Inventory.objects.filter(warehouse__in=Warehouse.objects.filter(staffwarehouse__staff=request.user))
+        user_warehouses = get_user_warehouses(request.user)
+        inventory = Inventory.objects.filter(warehouse__in=user_warehouses)
     serializer = InventorySerializer(inventory, many=True)
     return Response(serializer.data)
 
@@ -108,7 +113,7 @@ def inventory_detail(request, inventory_id):
         if not request.user.roles.filter(name='admin').exists():
             return Response({'message': 'Only Admin can delete inventory'}, status=status.HTTP_403_FORBIDDEN)
         inventory.delete()
-        return Response({'message' : 'Inventory Deleted successfully'})
+        return Response({'message': 'Inventory deleted successfully'})
 
 
 @api_view(['GET'])
@@ -117,9 +122,8 @@ def stock_movement_list(request):
     if request.user.roles.filter(name='admin').exists():
         stock_movement = StockMovement.objects.all()
     else:
-        stock_movement = StockMovement.objects.filter(
-            warehouse__in=Warehouse.objects.filter(staffwarehouse__staff=request.user)
-        )
+        user_warehouses = get_user_warehouses(request.user)
+        stock_movement = StockMovement.objects.filter(warehouse__in=user_warehouses)
     serializer = StockMovementSerializer(stock_movement, many=True)
     return Response(serializer.data)
 
@@ -185,8 +189,6 @@ def add_stock_in_warehouse(request, warehouse_id):
     reason = request.data.get('reason')
     if not product_id or not quantity or not reason:
         return Response({'message' : 'Product, quantity and reason are required'}, status=status.HTTP_400_BAD_REQUEST)
-    if not quantity:
-        return Response({'message': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
     try:
         quantity = int(quantity)
         if quantity <= 0:
@@ -221,8 +223,6 @@ def remove_stock_from_warehouse(request, warehouse_id):
     reason = request.data.get('reason')
     if not product_id or not quantity or not reason:
         return Response({'message' : 'Product, quantity and reason are required'}, status=status.HTTP_400_BAD_REQUEST)
-    if not quantity:
-        return Response({'message': 'Quantity is required'}, status=status.HTTP_400_BAD_REQUEST)
     try:
         quantity = int(quantity)
         if quantity <= 0:
