@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 
 ROLE_CHOICE = [
         ('admin', 'Admin'),
+        ('staff', 'staff'),
         ('vendor', 'Vendor'),
         ('customer', 'Customer'),
         ]
