@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view , permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from django.db.models import Avg, Count
 from rest_framework.pagination import PageNumberPagination
 from django.core.cache import cache
 
@@ -80,14 +81,21 @@ def product_list(request):
 @api_view(['GET' , 'PUT' , 'DELETE'])
 @permission_classes([IsAuthenticated])
 def product_detail(request, product_id):
-    try:
-        product = Product.objects.get(id = product_id)
-    except Product.DoesNotExist:
+    product = Product.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        total_reviews=Count('reviews')
+    ).filter(id=product_id).first()
+    
+    if not product:
         return Response({'message': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = ProductSerializer(product)
-        return Response(serializer.data)
+        serializer = ProductSerializer(product, context={'request': request})
+        return Response({
+            'product': serializer.data,
+            'average_rating': product.average_rating,
+            'total_reviews': product.total_reviews
+        })
 
     elif request.method == 'PUT':
         if not IsVendorOrAdmin().has_object_permission(request, None, product):
