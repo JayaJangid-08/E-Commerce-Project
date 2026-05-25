@@ -6,8 +6,7 @@ urlpatterns = [
     path('', views.warehouse_list, name='warehouse-list'),
     path('<int:warehouse_id>/', views.warehouse_detail, name='warehouse-detail'),
     path('inventories/', views.inventory_list, name='inventory-list'),
-    path('inventory/<int:inventory_id>/', views.inventory_detail, name='inventory-detail'),
-    # path('products/<int:product_id>/inventory/' views.Porducts_in_inventory, name=''),
+    path('inventory/<int:inventory_id>/', views.inventory_detail, name='inventory-detail'), 
     # Inventory by warehouse
     path('<int:warehouse_id>/inventory/', views.inventory_of_single_warehouse, name='inventory-of-single-warehouse'),
     path('stock-movements/', views.stock_movement_list, name='stock-movement-list'),
