@@ -31,12 +31,15 @@ def product_list(request):
             return Response(cached_response)
         products = Product.objects.all()
         # Filtering
+        scope = request.query_params.get('scope')
         category = request.query_params.get('category')
         vendor = request.query_params.get('vendor')
         search = request.query_params.get('search')
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
         ordering = request.query_params.get('ordering', 'created_at')
+        if scope == 'mine' and IsVendorOrAdmin().has_object_permission(request, None, products):
+            products = products.filter(vendor=request.user)
         if category:
             products = products.filter(category__name__iexact=category)
         if vendor:
