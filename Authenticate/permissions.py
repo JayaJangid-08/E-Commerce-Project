@@ -72,7 +72,7 @@ class IsAdminOrAssignedStaff(IsAuthenticatedBase):
         if request.user.roles.filter(name='admin').exists():
             return True
         
-        user_warehouses = Warehouse.objects.filter(warehouse_staff__staff=request.user)
+        user_warehouses = Warehouse.objects.filter(staffwarehouse__staff=request.user)
         # If object itself is Warehouse
         if isinstance(obj, Warehouse):
             return obj in user_warehouses
