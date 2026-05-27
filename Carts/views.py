@@ -4,11 +4,27 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from Authenticate.permissions import IsCustomer
+from Authenticate.permissions import IsCustomer , IsAdmin
+from Authenticate.models import User
 from .models import Cart
 from .serializers import CartSerializer
 
 # Create your views here.
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def customer_cart(request, user_id):
+    try:
+        customer = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'message': 'Customer not found'}, status=status.HTTP_404_NOT_FOUND)
+    cart_items = Cart.objects.filter(user=customer).select_related('product')
+    serializer = CartSerializer(cart_items, many=True)
+    return Response({
+        'customer': customer.username,
+        'total_items': cart_items.count(),
+        'cart_items': serializer.data
+    })
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsCustomer])
