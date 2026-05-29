@@ -15,7 +15,7 @@ from Authenticate.permissions import IsAdmin, IsAdminOrAssignedStaff
 
 def get_user_warehouses(user):
     """Get all warehouses assigned to a user"""
-    return Warehouse.objects.filter(warehouse_staff__staff=user)
+    return Warehouse.objects.filter(staffwarehouse__staff=user)
 
 
 @api_view(['POST'])
