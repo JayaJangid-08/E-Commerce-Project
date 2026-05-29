@@ -7,6 +7,8 @@ from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
 
 from .models import Order , OrderItem , OrderAddress
+from Carts.serializers import CartSerializer
+from .models import StatusChoice
 from .serializers import OrderSerializer , OrderItemSerializer , OrderAddressSerializer
 from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor , IsVendorOrAdmin
 from .services.pricing import apply_pricing , build_items_from_cart , get_eligible_items , calculate_discount
@@ -44,6 +46,16 @@ def place_order(request):
     if not cart_items.exists():
         return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
     
+    # Get selected cart item IDs from request
+    cart_item_ids = request.data.get('cart_item_ids', [])
+    if isinstance(cart_item_ids, int):
+            cart_item_ids = [cart_item_ids]
+    if not cart_item_ids:
+            return Response({'message': 'Please select at least one item from cart'}, status=status.HTTP_400_BAD_REQUEST)
+    # Get ONLY selected cart items
+    cart_items = Cart.objects.filter(id__in=cart_item_ids, user=request.user)
+    if not cart_items.exists():
+            return Response({'message': 'No valid cart items selected'},  status=status.HTTP_400_BAD_REQUEST)
     # Frontend sends address_id
     address_id = request.data.get('address_id')
     coupon_name = request.data.get('coupon')
@@ -74,11 +86,12 @@ def place_order(request):
             phone=address.phone
         )
         order = Order.objects.create(
-                customer=request.user,
-                delivery_address=order_address,
-                total_price=pricing['subtotal'],
-                final_price=pricing['final_price']
-            )
+            customer=request.user,
+            delivery_address=order_address,
+            total_price=pricing['subtotal'],
+            discount_amount=pricing['discount_amount'],
+            final_price=pricing['final_price']
+        )
         for item in cart_items:
             OrderItem.objects.create(
                 order=order,
@@ -87,8 +100,8 @@ def place_order(request):
                 product_description=item.product.description,
                 product_price=item.product.price,
                 product_image=str(item.product.image),
-                product_category=item.product.category.name,
-                vendor_name=item.product.vendor.username,
+                product_category=item.product.category.name if item.product.category else 'N/A',
+                vendor_name=item.product.vendor.username if item.product.vendor else 'N/A',
                 quantity=item.quantity
             )
             item.product.stock -= item.quantity
@@ -146,7 +159,12 @@ def cancel_order_item(request, item_id):
     return Response({'message': 'Order item cancelled successfully'}, status=status.HTTP_200_OK)
 
 
-# Only admin can update status here
+VALID_ITEM_STATUSES = [
+    StatusChoice.CONFIRMED,
+    StatusChoice.SHIPPED,
+    StatusChoice.DELIVERED,
+]
+# Only admin can update order status here
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated, IsAdmin])
 def update_order_status(request, order_id):
@@ -156,11 +174,10 @@ def update_order_status(request, order_id):
         return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     
     new_status = request.data.get('status')
-    
-    if new_status not in ['confirmed', 'shipped', 'delivered']:
+    if new_status not in VALID_ITEM_STATUSES:
         return Response({'message': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if order.status == 'cancelled':
+
+    if order.status == StatusChoice.CANCELLED:
         return Response({'message': 'Cancelled order cannot be updated'}, status=status.HTTP_400_BAD_REQUEST)
     
     order.status = new_status
@@ -168,7 +185,7 @@ def update_order_status(request, order_id):
     return Response({'message': 'Status updated successfully'})
 
 
-# Only vendor those item are in order can update item status here
+# Only vendor whose item is in order can update item status here
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated, IsVendor])
 def update_item_status(request, item_id):
@@ -177,15 +194,14 @@ def update_item_status(request, item_id):
     except OrderItem.DoesNotExist:
         return Response({'message': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    if item.product.vendor != request.user:
+    if not item.product or item.product.vendor != request.user:
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
-    if item.status in ['delivered', 'cancelled']:
+    if item.status in [StatusChoice.DELIVERED, StatusChoice.CANCELLED]:
         return Response({'message' : 'Item status cannot be updated'}, status=status.HTTP_400_BAD_REQUEST)
     
     new_status = request.data.get('status')
-    
-    if new_status not in ['confirmed', 'shipped', 'delivered']:
+    if new_status not in VALID_ITEM_STATUSES:
         return Response({'message': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
     
     item.status = new_status
@@ -196,31 +212,37 @@ def update_item_status(request, item_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsCustomer])
 def preview_order(request):
-    cart_items = Cart.objects.filter(user=request.user)
-    if not cart_items.exists():
-        return Response({'message': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
-
-    coupon_name = request.query_params.get('coupon') 
-    items = build_items_from_cart(cart_items)
-    pricing = apply_pricing(items, coupon_name)
-    if pricing.get("error"):
-        return Response({'message': pricing['error']}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        cart_item_ids = request.query_params.get('cart_item_ids', '')
+        coupon_name = request.query_params.get('coupon')
+        if cart_item_ids:
+            # Selected items (convert string to list)
+            try:
+                cart_item_ids = [int(id) for id in cart_item_ids.split(',')]
+            except ValueError:
+                return Response({'message': 'Invalid cart_item_ids format'},  status=status.HTTP_400_BAD_REQUEST)
+            cart_items = Cart.objects.filter(id__in=cart_item_ids, user=request.user)
+        else:
+            # All cart items
+            cart_items = Cart.objects.filter(user=request.user)
+        
+        if not cart_items.exists():
+            return Response({'message': 'Cart is empty'},  status=status.HTTP_400_BAD_REQUEST)
+        
+        # Calculate pricing
+        items = build_items_from_cart(cart_items)
+        pricing = apply_pricing(items, coupon_name)
+        
+        if pricing.get("error"):
+            return Response({'message': pricing['error']},  status=status.HTTP_400_BAD_REQUEST)
+        
+        # Add cart items details
+        pricing['selected_items'] = CartSerializer(cart_items, many=True).data
+        pricing['total_items'] = cart_items.count()
+        
+        return Response(pricing, status=status.HTTP_200_OK)
     
-    return Response(pricing, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'message': 'Error generating preview', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCustomer])
-def preview_single_item_order(request, cart_id):
-    cart_items = Cart.objects.filter(id=cart_id, user=request.user)
-    if not cart_items.exists():
-        return Response({'message': 'Cart item not found'}, status=status.HTTP_400_BAD_REQUEST)
-
-    coupon_name = request.query_params.get('coupon') 
-    items = build_items_from_cart(cart_items)
-    pricing = apply_pricing(items, coupon_name)
-    if pricing.get("error"):
-        return Response({'message': pricing['error']}, status=status.HTTP_400_BAD_REQUEST)
-    
-    return Response(pricing, status=status.HTTP_200_OK)
 
