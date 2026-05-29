@@ -2,13 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.order_list, name='order-list'),
+    path('preview/', views.preview_order, name='preview-order'), 
     path('place/', views.place_order, name='place-order'),
-    path('<int:order_id>/', views.order_detail, name='order-detail'),
-    path('preview/', views.preview_order, name='preview-order'),
-    path('preview/<int:cart_id>/', views.preview_single_item_order, name='preview-single-item-order'),
-    path('cancel-order-item/<int:item_id>/',views.cancel_order_item, name='cancel-order'),
+    path('', views.order_list, name='order-list'),
+    path('<int:order_id>/', views.order_detail, name='order-detail'), 
     path('<int:order_id>/status/',views.update_order_status, name='update-order-status'),
     path('item/<int:item_id>/status/',views.update_item_status, name='update-item-status'),
+    path('cancel-order-item/<int:item_id>/',views.cancel_order_item, name='cancel-order'),
 ]
 
