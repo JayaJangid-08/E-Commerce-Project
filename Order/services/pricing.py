@@ -69,11 +69,11 @@ def apply_pricing(cart_items, coupon_name=None):
         
         eligible_items = get_eligible_items(cart_items, coupon)
         if not eligible_items:
-            return {"error": "Coupon not applicable"}
+            return {"error": "Coupon not applicable to any items"}
         
         eligible_total = sum(i["price"] * i["quantity"] for i in eligible_items)
         if eligible_total < coupon.minimum_order_amount:
-            return {"error": "Minimum order amount not met"}
+            return {"error": f"Minimum order amount Rs. {coupon.minimum_order_amount} not met"}
 
         discount_amount = calculate_discount(eligible_total, coupon)
 
