@@ -243,6 +243,6 @@ def preview_order(request):
         return Response(pricing, status=status.HTTP_200_OK)
     
     except Exception as e:
-        return Response({'message': 'Error generating preview', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'message' : 'Error generating preview', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
