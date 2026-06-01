@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Cart
+from Products.models import Product
 
 class CartSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
@@ -29,8 +30,7 @@ class CartSerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError("Quantity must be greater than 0")
         product = self.initial_data.get('product')
-        if product:
-            from Products.models import Product
+        if product: 
             try:
                 prod = Product.objects.get(id=product)
                 if value > prod.stock:
