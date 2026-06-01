@@ -13,7 +13,7 @@ class Cart(models.Model):
 
     class Meta:
         unique_together = ('user', 'product')  # Prevent duplicate items
-        ordering = ['-created_at']              # Newest first
+        ordering = ['-created_at']             # Newest first
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name} x {self.quantity}"
@@ -21,3 +21,4 @@ class Cart(models.Model):
     def get_item_total(self):
         """Calculate total price for this cart item"""
         return self.product.price * self.quantity
+
