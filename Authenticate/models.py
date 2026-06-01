@@ -8,6 +8,7 @@ ROLE_CHOICE = [
         ('staff', 'Staff'),
         ('vendor', 'Vendor'),
         ('customer', 'Customer'),
+        ('courier', 'Courier')
         ]
 
 class Role(models.Model):
