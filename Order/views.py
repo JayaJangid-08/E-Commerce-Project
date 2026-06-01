@@ -9,9 +9,9 @@ from rest_framework.pagination import PageNumberPagination
 from .models import Order , OrderItem , OrderAddress
 from Carts.serializers import CartSerializer
 from .models import StatusChoice
-from .serializers import OrderSerializer , OrderItemSerializer , OrderAddressSerializer
-from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor , IsVendorOrAdmin
-from .services.pricing import apply_pricing , build_items_from_cart , get_eligible_items , calculate_discount
+from .serializers import OrderSerializer , OrderItemSerializer
+from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor
+from .services.pricing import apply_pricing , build_items_from_cart
 from Discount.models import Discount
 from Authenticate.models import Address
 from Carts.models import Cart
