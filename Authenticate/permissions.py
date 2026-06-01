@@ -82,3 +82,6 @@ class IsAdminOrAssignedStaff(IsAuthenticatedBase):
             return obj.warehouse in user_warehouses
         return False
 
+class IsCourier(IsAuthenticatedBase):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request.user.roles.filter(name='courier').exists()
