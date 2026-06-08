@@ -164,6 +164,7 @@ VALID_ITEM_STATUSES = [
     StatusChoice.SHIPPED,
     StatusChoice.DELIVERED,
 ]
+
 # Only admin can update order status here
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated, IsAdmin])
