@@ -1,9 +1,9 @@
-from .models import User , Address , Role
+from .models import User , Address , Role , ROLE_CHOICE
 from rest_framework import serializers
 
 class RegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
-    roles = serializers.ChoiceField(choices=['vendor', 'customer'], required=False, allow_null=True)
+    roles = serializers.ChoiceField(choices=ROLE_CHOICE, required=False, allow_null=True)
 
     class Meta:
         model = User
@@ -19,9 +19,10 @@ class RegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Username already exists")
         return value
     
-    def validate_role(self, value):
+    def validate_roles(self, value):
+        valid_roles = [role[0] for role in ROLE_CHOICE]
         # Extra safety layer
-        if value not in ['vendor', 'customer']:
+        if value not in valid_roles:
             raise serializers.ValidationError("Invalid role")
         return value
 
@@ -30,9 +31,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
         # FORCE DEFAULT ROLE = customer
         if not role_name:
             role_name = 'customer'
-        # BLOCK admin completely
-        if role_name == 'admin':
-            raise serializers.ValidationError("Admin cannot be created via signup")
+        # BLOCK completely
+        if role_name in ['admin', 'staff', 'courier']:
+            raise serializers.ValidationError(f'"{role_name}" role cannot be self-assigned during registration')
         user = User.objects.create_user(**validated_data)
         role_obj, _ = Role.objects.get_or_create(name=role_name)
         user.roles.add(role_obj)
@@ -59,8 +60,9 @@ class AddressSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         user = self.context['request'].user
-        if Address.objects.filter(user=user).count() >= 5:
-            raise serializers.ValidationError("Maximum 5 addresses are allowed")
+        if not self.instance:
+            if Address.objects.filter(user=user).count() >= 5:
+                raise serializers.ValidationError("Maximum 5 addresses are allowed")
         return data
     
     def validate_latitude(self, value):
