@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from django.conf.urls.static import static
+from django.conf import settings
 
 def home(request):
     return HttpResponse("""
@@ -35,6 +37,7 @@ urlpatterns = [
     path('products/', include('Products.urls')),
     path('carts/', include('Carts.urls')),
     path('orders/', include('Order.urls')),
+    path('courier/', include('Couriers.urls')),
     path('discount/', include('Discount.urls')),
     path('reviews/', include('Reviews.urls'))
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
