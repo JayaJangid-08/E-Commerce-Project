@@ -40,6 +40,7 @@ AUTH_USER_MODEL = 'Authenticate.User'
 INSTALLED_APPS = [
     'Authenticate',
     'Carts',
+    'Couriers',
     'Discount',
     'Order',
     'Products',
@@ -53,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 MIDDLEWARE = [
@@ -123,10 +125,11 @@ if 'REDIS_URL' in os.environ:
         }
     }
 else:
-    # Development or Render free tier - use dummy cache
+    # Local development — LocMemCache supports incr()
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ecommerce-dev-cache",
         }
     }
 
@@ -197,10 +200,16 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
