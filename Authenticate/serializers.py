@@ -2,12 +2,11 @@ from .models import User , Address , Role , ROLE_CHOICE
 from rest_framework import serializers
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
-    roles = serializers.ChoiceField(choices=ROLE_CHOICE, required=False, allow_null=True)
+    password = serializers.CharField(write_only=True , min_length=6)
 
     class Meta:
         model = User
-        fields = ['username' , 'email' , 'password' , 'roles']
+        fields = ['username' , 'email' , 'password']
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -19,25 +18,8 @@ class RegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Username already exists")
         return value
     
-    def validate_roles(self, value):
-        valid_roles = [role[0] for role in ROLE_CHOICE]
-        # Extra safety layer
-        if value not in valid_roles:
-            raise serializers.ValidationError("Invalid role")
-        return value
-
-    def create(self, validated_data):
-        role_name = validated_data.pop('roles', None)
-        # FORCE DEFAULT ROLE = customer
-        if not role_name:
-            role_name = 'customer'
-        # BLOCK completely
-        if role_name in ['admin', 'staff', 'courier']:
-            raise serializers.ValidationError(f'"{role_name}" role cannot be self-assigned during registration')
-        user = User.objects.create_user(**validated_data)
-        role_obj, _ = Role.objects.get_or_create(name=role_name)
-        user.roles.add(role_obj)
-
+    def create(self , validated_data):
+        user = User.objects.create_user(**validated_data) 
         return user
 
 class AddressSerializer(serializers.ModelSerializer):
