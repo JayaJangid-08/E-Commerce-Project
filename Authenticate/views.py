@@ -42,9 +42,47 @@ def login(request):
         return Response({'message': 'Login View'})
 
 
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def my_profile(request):
+    user = request.user
+    if request.method == 'GET':
+        addresses = Address.objects.filter(user=user)
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'roles': list(user.roles.values_list('name', flat=True)),
+            'date_joined': user.date_joined.strftime("%Y-%m-%d"),
+            'addresses': AddressSerializer(addresses, many=True).data
+        })
+
+    elif request.method == 'PUT':
+        data = {}
+        if 'username' in request.data:
+            if User.objects.filter(username=request.data['username']).exclude(id=user.id).exists():
+                return Response({'error': 'Username already taken'}, status=status.HTTP_400_BAD_REQUEST)
+            data['username'] = request.data['username']
+
+        if 'email' in request.data:
+            if User.objects.filter(email=request.data['email']).exclude(id=user.id).exists():
+                return Response({'error': 'Email already taken'}, status=status.HTTP_400_BAD_REQUEST)
+            data['email'] = request.data['email']
+
+        for key, value in data.items():
+            setattr(user, key, value)
+        user.save()
+
+        return Response({
+            'message': 'Profile updated successfully',
+            'username': user.username,
+            'email': user.email,
+        })
+
+
 CAN_ADD = {
     'customer': ['vendor'],       # customer can become vendor
-    'vendor':   ['customer'],     # vendor can't add anything new
+    'vendor':   [],               # vendor can't add anything new
     'staff':    ['customer'],     # staff can add customer role
     'courier':  ['customer'],     # courier can add customer role
     'admin':    [],               # blocked entirely
@@ -54,8 +92,8 @@ CAN_ADD = {
 CAN_REMOVE = {
     'customer': [],               # customer can't remove customer (base role)
     'vendor':   ['vendor'],       # vendor can drop vendor, revert to customer
-    'staff':    [],
-    'courier':  [],
+    'staff':    ['customer'],     # staff can drop customer
+    'courier':  ['customer'],     # courier can drop customer
     'admin':    [],               # blocked entirely
 }
 
@@ -78,7 +116,7 @@ def get_allowed_actions(user_roles: set) -> tuple[set, set]:
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def switch_role(request):
+def remove_add_role(request):
     user = request.user
     user_roles = set(user.roles.values_list('name', flat=True))
     if request.method == 'GET':
@@ -141,9 +179,14 @@ def assign_role(request):
     user_id = request.data.get('user_id')
     role_name = request.data.get('role')
 
-    ADMIN_ASSIGNABLE_ROLES = ['staff', 'courier', 'vendor', 'customer']
+    ADMIN_ASSIGNABLE_ROLES = ['staff', 'courier', 'vendor']
 
-    if role_name not in ADMIN_ASSIGNABLE_ROLES:
+    # Only superuser can assign admin
+    if role_name == 'admin':
+        if not request.user.is_superuser:
+            return Response({'error': 'Only superuser can assign admin role'}, status=status.HTTP_403_FORBIDDEN)
+
+    elif role_name not in ADMIN_ASSIGNABLE_ROLES:
         return Response({'error': f'Invalid role. Assignable roles: {ADMIN_ASSIGNABLE_ROLES}'}, status=status.HTTP_400_BAD_REQUEST)
     try:
         user = User.objects.get(id=user_id)
