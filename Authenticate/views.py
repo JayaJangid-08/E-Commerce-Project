@@ -42,6 +42,34 @@ def login(request):
         return Response({'message': 'Login View'})
 
 
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def switch_active_role(request):
+    user = request.user
+    user_roles = set(user.roles.values_list('name', flat=True))
+
+    if request.method == 'GET':
+        return Response({'active_role': user.active_role, 'all_roles': list(user_roles)})
+
+    requested_role = request.data.get('role')
+    if not requested_role:
+        return Response({'error': 'role is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if requested_role not in user_roles:
+        return Response({
+            'error': f'You do not have the "{requested_role}" role',
+            'your_roles': list(user_roles)}, status=status.HTTP_403_FORBIDDEN)
+
+    user.active_role = requested_role
+    user.save()
+
+    return Response({
+        'message': f'Switched to "{requested_role}" mode',
+        'active_role': user.active_role,
+        'all_roles': list(user_roles)
+    })
+
+
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def my_profile(request):
