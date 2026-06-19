@@ -28,9 +28,15 @@ class IsVendorOrAdmin(IsAuthenticatedBase):
             return super().has_permission(request, view) and (request.user.roles.filter(name__in = ['admin', 'vendor']).exists())
 
     def has_object_permission(self, request, view, obj):
-        return super().has_permission(request, view) and (
-            request.user.roles.filter(name='admin').exists() or
-            obj.vendor == request.user)
+        if not super().has_permission(request, view):
+            return False
+        if request.user.roles.filter(name='admin').exists():
+            if request.method == 'DELETE':
+                return True
+            if obj.vendor == request.user:
+                return True
+            return False 
+        return obj.vendor == request.user
 
 
 class IsDiscountOwnerOrAdmin(IsAuthenticatedBase):
