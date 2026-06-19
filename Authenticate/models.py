@@ -21,6 +21,7 @@ class User(AbstractUser):
     USERNAME_FIELD = 'username'
     email = models.EmailField(unique=True)
     roles = models.ManyToManyField(Role)
+    active_role = models.CharField(max_length=20)
 
     REQUIRED_FIELDS = ['email']
     def __str__(self):
