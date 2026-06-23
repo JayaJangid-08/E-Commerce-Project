@@ -32,6 +32,7 @@ class Discount(models.Model):
         Product, on_delete=models.CASCADE,
         null=True, blank=True,
         related_name='product_coupons')
+
     discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2)
     
@@ -51,6 +52,10 @@ class Discount(models.Model):
         if self.applicable_to == 'product' and not self.product:
             raise ValidationError("Product is required for product-level coupon")
 
+        # Validate discount amount
+        if self.discount_type == 'percentage' and self.discount_amount > 100:
+            raise ValidationError("Percentage discount cannot exceed 100%")
+
     class Meta:
             ordering = ['-created_at']
 
@@ -69,17 +74,6 @@ class Discount(models.Model):
         """Check if coupon is valid and can be used"""
         return self.is_active and not self.is_expired() and not self.is_exhausted()
 
-    def clean(self):
-        """Validate coupon based on applicable_to"""
-        if self.applicable_to == 'vendor' and not self.vendor:
-            raise ValidationError("Vendor is required for vendor coupon")
-
-        if self.applicable_to == 'product' and not self.product:
-            raise ValidationError("Product is required for product-level coupon")
-
-        # Validate discount amount
-        if self.discount_type == 'percentage' and self.discount_amount > 100:
-            raise ValidationError("Percentage discount cannot exceed 100%")
 
 
 
