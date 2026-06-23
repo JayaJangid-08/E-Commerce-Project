@@ -3,10 +3,12 @@ from rest_framework.decorators import api_view , permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils.timezone import now
 
-from Authenticate.permissions import IsDiscountOwnerOrAdmin
+from Authenticate.permissions import IsAdmin, IsDiscountOwnerOrAdmin
 from .serializers import DiscountSerializer
 from .models import Discount
+from Products.models import Product
 
 # Create your views here.
 
@@ -14,13 +16,35 @@ from .models import Discount
 @permission_classes([IsAuthenticated])
 def discount_list(request):
     if request.method == 'GET':
-        discount = Discount.objects.all()
+        if IsAdmin().has_permission(request, None):
+            discount = Discount.objects.all()
+        else:
+            discount = Discount.objects.filter(is_active=True, expiry_date__gt=now())
         serializer = DiscountSerializer(discount, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
         if not IsDiscountOwnerOrAdmin().has_permission(request, None):
-            return Response({'message' : 'Permision denied'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Vendor validation
+        if not request.user.roles.filter(name='admin').exists():
+            applicable_to = request.data.get('applicable_to')
+
+            # Vendor sirf 'all' ya 'vendor' ya 'product' bana sakta hai
+            # but sirf apne liye
+            if applicable_to == 'vendor':
+                vendor_id = request.data.get('vendor')
+                if str(vendor_id) != str(request.user.id):
+                    return Response({'message': 'You can only create coupons for yourself'}, status=status.HTTP_403_FORBIDDEN)
+            if applicable_to == 'product':
+                product_id = request.data.get('product')
+                try:
+                    product = Product.objects.get(id=product_id)
+                    if product.vendor != request.user:
+                        return Response({'message': 'You can only create coupons for your own products'}, status=status.HTTP_403_FORBIDDEN)
+                except Product.DoesNotExist:
+                    return Response({'message': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = DiscountSerializer(data=request.data)
         if serializer.is_valid():
