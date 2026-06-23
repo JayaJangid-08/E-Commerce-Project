@@ -13,6 +13,7 @@ from .serializers import OrderSerializer , OrderItemSerializer
 from Authenticate.permissions import IsCustomer , IsAdmin , IsVendor
 from .services.pricing import apply_pricing , build_items_from_cart
 from Discount.models import Discount
+from Payments.models import Payment, PaymentStatus, PaymentMethod
 from Authenticate.models import Address
 from Carts.models import Cart
 
@@ -22,12 +23,12 @@ from Carts.models import Cart
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_list(request):
-    if IsCustomer().has_permission(request, None):
-        orders = Order.objects.filter(customer=request.user).order_by('-order_date')
-    elif IsAdmin().has_permission(request, None):
+    if IsAdmin().has_permission(request, None):
         orders = Order.objects.all().order_by('-order_date')
     elif IsVendor().has_permission(request, None):
-        orders = Order.objects.filter(order_items__product__vendor=request.user).order_by('-order_date')
+        orders = Order.objects.filter(order_items__product__vendor=request.user).distinct().order_by('-order_date')
+    elif IsCustomer().has_permission(request, None):
+        orders = Order.objects.filter(customer=request.user).order_by('-order_date')
     else:
         return Response({'message': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
     
@@ -57,6 +58,9 @@ def place_order(request):
     if not cart_items.exists():
             return Response({'message': 'No valid cart items selected'},  status=status.HTTP_400_BAD_REQUEST)
     # Frontend sends address_id
+    payment_method = request.data.get('payment_method', PaymentMethod.COD)
+    if payment_method not in [PaymentMethod.COD]:
+        return Response({'message': 'Invalid payment method. Only COD is available'}, status=status.HTTP_400_BAD_REQUEST)
     address_id = request.data.get('address_id')
     coupon_name = request.data.get('coupon')
     try:
@@ -92,6 +96,14 @@ def place_order(request):
             discount_amount=pricing['discount_amount'],
             final_price=pricing['final_price']
         )
+        # Payment create karo saath mein
+        Payment.objects.create(
+            order=order,
+            user=request.user,
+            method=payment_method,
+            amount=order.final_price,
+            status=PaymentStatus.PENDING
+        )
         for item in cart_items:
             OrderItem.objects.create(
                 order=order,
@@ -112,7 +124,15 @@ def place_order(request):
             coupon.save()
         
         cart_items.delete() 
-    return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+    return Response({
+        'order': OrderSerializer(order).data,
+        'payment': {
+            'method': payment_method,
+            'amount': str(order.final_price),
+            'status': PaymentStatus.PENDING,
+            'message': 'Order placed successfully. Pay cash on delivery.'
+        }
+    }, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -159,11 +179,12 @@ def cancel_order_item(request, item_id):
     return Response({'message': 'Order item cancelled successfully'}, status=status.HTTP_200_OK)
 
 
-VALID_ITEM_STATUSES = [
-    StatusChoice.CONFIRMED,
-    StatusChoice.SHIPPED,
-    StatusChoice.DELIVERED,
-]
+VALID_ORDER_TRANSITIONS = {
+    StatusChoice.CONFIRMED: [StatusChoice.SHIPPED],
+    StatusChoice.SHIPPED:   [StatusChoice.DELIVERED],
+    StatusChoice.DELIVERED: [],
+    StatusChoice.CANCELLED: [],
+}
 
 # Only admin can update order status here
 @api_view(['PATCH'])
@@ -175,8 +196,11 @@ def update_order_status(request, order_id):
         return Response({'message': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     
     new_status = request.data.get('status')
-    if new_status not in VALID_ITEM_STATUSES:
-        return Response({'message': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+    if new_status not in VALID_ORDER_TRANSITIONS.get(order.status, []):
+        return Response({
+            'message': f'Cannot transition from "{order.status}" to "{new_status}"',
+            'allowed': VALID_ORDER_TRANSITIONS.get(order.status, [])
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     if order.status == StatusChoice.CANCELLED:
         return Response({'message': 'Cancelled order cannot be updated'}, status=status.HTTP_400_BAD_REQUEST)
@@ -185,6 +209,13 @@ def update_order_status(request, order_id):
     order.save()
     return Response({'message': 'Status updated successfully'})
 
+
+VALID_ITEM_TRANSITIONS = {
+    StatusChoice.CONFIRMED: [StatusChoice.SHIPPED],
+    StatusChoice.SHIPPED:   [StatusChoice.DELIVERED],
+    StatusChoice.DELIVERED: [],
+    StatusChoice.CANCELLED: [],
+}
 
 # Only vendor whose item is in order can update item status here
 @api_view(['PATCH'])
@@ -202,8 +233,11 @@ def update_item_status(request, item_id):
         return Response({'message' : 'Item status cannot be updated'}, status=status.HTTP_400_BAD_REQUEST)
     
     new_status = request.data.get('status')
-    if new_status not in VALID_ITEM_STATUSES:
-        return Response({'message': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+    if new_status not in VALID_ITEM_TRANSITIONS.get(item.status, []):
+        return Response({
+            'message': f'Cannot transition from "{item.status}" to "{new_status}"',
+            'allowed': VALID_ITEM_TRANSITIONS.get(item.status, [])
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     item.status = new_status
     item.save()
@@ -240,7 +274,7 @@ def preview_order(request):
         # Add cart items details
         pricing['selected_items'] = CartSerializer(cart_items, many=True).data
         pricing['total_items'] = cart_items.count()
-        
+        pricing.pop('coupon_obj', None)
         return Response(pricing, status=status.HTTP_200_OK)
     
     except Exception as e:
