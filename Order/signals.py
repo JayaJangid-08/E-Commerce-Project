@@ -5,7 +5,7 @@ from .models import Order
 from .email import send_order_confirmation_email
 
 @receiver(post_save, sender=Order)
-def order_placedd(sender, instance, created, **kwargs):
+def order_placed(sender, instance, created, **kwargs):
     # Only when users are added
     if created and settings.SEND_EMAILS:
         try:
