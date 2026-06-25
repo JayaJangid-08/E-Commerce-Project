@@ -2,6 +2,8 @@ from django.db import models
 from django.utils import timezone
 from Order.models import OrderItem , StatusChoice
 from Authenticate.models import User
+from Payments.models import Payment, PaymentStatus, PaymentMethod
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class VehicleType(models.TextChoices):
@@ -67,13 +69,12 @@ class DeliveryAssignment(models.Model):
     
     def _collect_cod_payment(self, order):
         try:
-            from Payments.models import Payment, PaymentStatus, PaymentMethod
             payment = order.payment
             if payment.method == PaymentMethod.COD and payment.status == PaymentStatus.PENDING:
                 payment.status = PaymentStatus.COLLECTED
                 payment.paid_at = timezone.now()
                 payment.save()
-        except Payment.DoesNotExist:
+        except ObjectDoesNotExist:
             pass
 
     def __str__(self):
