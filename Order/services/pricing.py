@@ -51,6 +51,7 @@ def apply_pricing(cart_items, coupon_name=None):
     subtotal = sum(i["price"] * i["quantity"] for i in cart_items)
     shipping = 100
     discount_amount = 0
+    coupon = None
 
     if coupon_name:
         try:
@@ -81,6 +82,7 @@ def apply_pricing(cart_items, coupon_name=None):
 
     return {
         "coupon": coupon_name,
+        "coupon_obj": coupon,
         "subtotal": subtotal,
         "shipping_charge": shipping,
         "discount_amount": discount_amount,
