@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'Discount',
     'Order',
     'Products',
+    'Payments',
     'Reviews',
     'Warehouses',
     'django_filters',
@@ -166,6 +167,7 @@ DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER")
 
 # FLAG CONTROL
 SEND_EMAILS = os.getenv("SEND_EMAILS", "false") == "true"
+
 # CELERY SETTINGS
 if 'CELERY_BROKER_URL' in os.environ:
     CELERY_BROKER_URL = env('CELERY_BROKER_URL')
