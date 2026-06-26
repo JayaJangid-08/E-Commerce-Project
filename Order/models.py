@@ -1,6 +1,7 @@
 from django.db import models
 from Products.models import Product
 from Authenticate.models import User
+# from Couriers.models import DeliveryStatus
 
 # Create your models here.
 
@@ -48,7 +49,7 @@ class Order(models.Model):
             old_status = Order.objects.get(pk=self.pk).status
         super().save(*args, **kwargs)
         if old_status != self.status:
-            self.order_items.update(status=self.status)
+            self.order_items.exclude(status=StatusChoice.CANCELLED).update(status=self.status)
 
     def __str__(self):
         return f"{self.customer.username}"
