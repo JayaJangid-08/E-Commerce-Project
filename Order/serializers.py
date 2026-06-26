@@ -34,13 +34,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
                 'assigned_at': assignment.assigned_at,
                 'delivered_at': assignment.delivered_at
             }
-        except:
+        except DeliveryAssignment.DoesNotExist:
             return None  # courier assign nahi hua
 
 
 class OrderSerializer(serializers.ModelSerializer):
     delivery_address = OrderAddressSerializer(read_only=True)
-    # order_items = OrderItemSerializer(many=True, read_only=True)
+    # order_items = OrderItemSerializer(many=True, read_only=True)  REMOVED BECAUSE OF DUPLICATE ITEMS IN ORDER DETAIL VIEW
     class Meta:
         model = Order
         fields = ['id', 'customer', 'delivery_address', 'total_price', 'discount_amount',
